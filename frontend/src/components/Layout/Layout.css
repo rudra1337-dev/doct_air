@@ -1,0 +1,4 @@
+.layout { display: flex; flex-direction: column; min-height: 100vh; }
+.layout__nav { padding: 1rem 2rem; background: #1a1a2e; }
+.layout__logo { font-weight: 700; font-size: 1.25rem; }
+.layout__main { flex: 1; padding: 2rem; }
