@@ -1,0 +1,1 @@
+# A reusable foundation for starting new software projects with consistent engineering and AI-agent conventions.
