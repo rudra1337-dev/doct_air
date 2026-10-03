@@ -1,20 +1,21 @@
-import { Navigate, useLocation, Outlet } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { Navigate, useLocation, Outlet } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import PageLoader from '../components/common/PageLoader';
 
 /**
- * ProtectedRoute component.
- * Centralizes authentication verification for protected views.
- *
- * @param {Object} props
- * @param {boolean} [props.enforce=false] - When true, redirects unauthenticated users to /sign-in.
- *                                         Defaults to false during initial scaffold so routes can be previewed/tested.
- * @param {React.ReactNode} [props.children] - Child components to render if authorized.
+ * ProtectedRoute guard.
+ * Requires user authentication before allowing access.
+ * Displays PageLoader during initial session verification.
  */
-export default function ProtectedRoute({ enforce = false, children }) {
-  const { user } = useAuth() || {};
+export default function ProtectedRoute({ children }) {
+  const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
-  if (enforce && !user) {
+  if (isLoading) {
+    return <PageLoader message="Verifying secure session..." />;
+  }
+
+  if (!isAuthenticated) {
     return <Navigate to="/sign-in" state={{ from: location }} replace />;
   }
 

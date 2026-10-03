@@ -1,10 +1,9 @@
 import { Router } from 'express';
+import authRoutes from './authRoutes.js';
 
 const router = Router();
 
-// Mount feature routers here as the project grows
-// Example:
-//   import authRoutes from './authRoutes.js';
-//   router.use('/auth', authRoutes);
+// Mount authentication routes under /api/auth
+router.use('/auth', authRoutes);
 
 export default router;

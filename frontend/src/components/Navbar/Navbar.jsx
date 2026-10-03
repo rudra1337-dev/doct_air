@@ -9,23 +9,24 @@ export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const navRef = useRef(null);
-  const { user, logout } = useAuth() || {};
 
-  // Track scroll state for glassmorphic backdrop
+  const { user, isAuthenticated, logout } = useAuth();
+
+  // Scroll effect for navbar background blur
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Automatically reset mobile menu on route change
+  // Reset mobile menu on route change
   const [prevPath, setPrevPath] = useState(location.pathname);
   if (prevPath !== location.pathname) {
     setPrevPath(location.pathname);
     setMenuOpen(false);
   }
 
-  // Close mobile menu on outside click & Escape key
+  // Outside click & Escape key listener
   useEffect(() => {
     if (!menuOpen) return;
 
@@ -36,9 +37,7 @@ export default function Navbar() {
     };
 
     const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        setMenuOpen(false);
-      }
+      if (e.key === "Escape") setMenuOpen(false);
     };
 
     document.addEventListener("mousedown", handleOutsideClick);
@@ -52,29 +51,30 @@ export default function Navbar() {
     };
   }, [menuOpen]);
 
-  // Handle section scrolling or navigation to landing sections
+  // Smooth scroll handler for landing page anchors
   const handleSectionClick = (e, sectionId) => {
     e.preventDefault();
     setMenuOpen(false);
 
     if (location.pathname === "/") {
       const element = document.getElementById(sectionId);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
-      }
+      if (element) element.scrollIntoView({ behavior: "smooth" });
     } else {
       navigate(`/#${sectionId}`);
       setTimeout(() => {
         const element = document.getElementById(sectionId);
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth" });
-        }
+        if (element) element.scrollIntoView({ behavior: "smooth" });
       }, 100);
     }
   };
 
-  const portalRoute =
-    user?.role === "PROFESSIONAL" ? "/professional/dashboard" : "/patient/dashboard";
+  const handleLogout = async () => {
+    setMenuOpen(false);
+    await logout();
+    navigate("/", { replace: true });
+  };
+
+  const isProfessionalOrAdmin = user?.role === "PROFESSIONAL" || user?.role === "ADMIN";
 
   return (
     <header
@@ -99,73 +99,162 @@ export default function Navbar() {
           <span className="navbar__logo-text">DoctAir</span>
         </Link>
 
-        {/* Desktop Navigation Links */}
+        {/* Desktop Links (Dynamic by Auth State & Role) */}
         <ul className="navbar__links" role="list">
-          <li>
-            <a
-              href="#features"
-              onClick={(e) => handleSectionClick(e, "features")}
-              className="navbar__link"
-            >
-              Product
-            </a>
-          </li>
-          <li>
-            <a
-              href="#how-it-works"
-              onClick={(e) => handleSectionClick(e, "how-it-works")}
-              className="navbar__link"
-            >
-              How It Works
-            </a>
-          </li>
-          <li>
-            <NavLink
-              to="/safety"
-              className={({ isActive }) =>
-                `navbar__link ${isActive ? "navbar__link--active" : ""}`
-              }
-            >
-              Safety
-            </NavLink>
-          </li>
-          <li>
-            <a
-              href="#for-teams"
-              onClick={(e) => handleSectionClick(e, "for-teams")}
-              className="navbar__link"
-            >
-              For Healthcare Teams
-            </a>
-          </li>
-          <li>
-            <NavLink
-              to="/about"
-              className={({ isActive }) =>
-                `navbar__link ${isActive ? "navbar__link--active" : ""}`
-              }
-            >
-              About
-            </NavLink>
-          </li>
+          {isAuthenticated && user ? (
+            isProfessionalOrAdmin ? (
+              /* Professional / Admin Navigation */
+              <>
+                <li>
+                  <NavLink
+                    to="/professional/dashboard"
+                    className={({ isActive }) =>
+                      `navbar__link ${isActive ? "navbar__link--active" : ""}`
+                    }
+                  >
+                    Dashboard
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/professional/queue"
+                    className={({ isActive }) =>
+                      `navbar__link ${isActive ? "navbar__link--active" : ""}`
+                    }
+                  >
+                    Queue
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/professional/cases"
+                    className={({ isActive }) =>
+                      `navbar__link ${isActive ? "navbar__link--active" : ""}`
+                    }
+                  >
+                    Cases
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/professional/profile"
+                    className={({ isActive }) =>
+                      `navbar__link ${isActive ? "navbar__link--active" : ""}`
+                    }
+                  >
+                    Profile
+                  </NavLink>
+                </li>
+              </>
+            ) : (
+              /* Patient Navigation */
+              <>
+                <li>
+                  <NavLink
+                    to="/patient/dashboard"
+                    className={({ isActive }) =>
+                      `navbar__link ${isActive ? "navbar__link--active" : ""}`
+                    }
+                  >
+                    Dashboard
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/patient/consultation"
+                    className={({ isActive }) =>
+                      `navbar__link ${isActive ? "navbar__link--active" : ""}`
+                    }
+                  >
+                    Consultation
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/patient/cases"
+                    className={({ isActive }) =>
+                      `navbar__link ${isActive ? "navbar__link--active" : ""}`
+                    }
+                  >
+                    Cases
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/patient/profile"
+                    className={({ isActive }) =>
+                      `navbar__link ${isActive ? "navbar__link--active" : ""}`
+                    }
+                  >
+                    Profile
+                  </NavLink>
+                </li>
+              </>
+            )
+          ) : (
+            /* Logged Out / Public Navigation */
+            <>
+              <li>
+                <a
+                  href="#features"
+                  onClick={(e) => handleSectionClick(e, "features")}
+                  className="navbar__link"
+                >
+                  Product
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#how-it-works"
+                  onClick={(e) => handleSectionClick(e, "how-it-works")}
+                  className="navbar__link"
+                >
+                  How It Works
+                </a>
+              </li>
+              <li>
+                <NavLink
+                  to="/safety"
+                  className={({ isActive }) =>
+                    `navbar__link ${isActive ? "navbar__link--active" : ""}`
+                  }
+                >
+                  Safety
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="/about"
+                  className={({ isActive }) =>
+                    `navbar__link ${isActive ? "navbar__link--active" : ""}`
+                  }
+                >
+                  About
+                </NavLink>
+              </li>
+            </>
+          )}
         </ul>
 
         {/* Desktop Actions */}
         <div className="navbar__actions">
-          {user ? (
-            <>
-              <Link to={portalRoute} className="navbar__workspace-btn">
-                Workspace
-              </Link>
+          {isAuthenticated && user ? (
+            <div className="navbar__user-group">
+              <span className={`navbar__user-badge ${isProfessionalOrAdmin ? "navbar__user-badge--pro" : ""}`}>
+                {user.role === "ADMIN" ? "Admin" : isProfessionalOrAdmin ? "Clinical" : "Patient"}
+              </span>
+              <span className="navbar__user-name" title={user.email}>
+                {user.name}
+              </span>
               <button
                 type="button"
-                onClick={logout}
-                className="navbar__sign-in"
+                onClick={handleLogout}
+                className="navbar__logout-btn"
                 aria-label="Sign out"
               >
                 Sign Out
               </button>
-            </>
+            </div>
           ) : (
             <>
               <NavLink
@@ -183,10 +272,10 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile Hamburger Button */}
+        {/* Mobile Hamburger */}
         <button
           className={["navbar__hamburger", menuOpen ? "navbar__hamburger--open" : ""].join(" ")}
-          aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
           aria-expanded={menuOpen}
           aria-controls="mobile-nav-menu"
           onClick={() => setMenuOpen((v) => !v)}
@@ -198,80 +287,171 @@ export default function Navbar() {
         </button>
       </nav>
 
-      {/* Mobile Drawer Navigation Menu */}
+      {/* Mobile Drawer Menu */}
       <div
         id="mobile-nav-menu"
         className={["navbar__mobile-menu", menuOpen ? "navbar__mobile-menu--open" : ""].join(" ")}
         aria-hidden={!menuOpen}
       >
         <ul className="navbar__mobile-links" role="list">
-          <li>
-            <a
-              href="#features"
-              className="navbar__mobile-link"
-              onClick={(e) => handleSectionClick(e, "features")}
-            >
-              Product
-            </a>
-          </li>
-          <li>
-            <a
-              href="#how-it-works"
-              className="navbar__mobile-link"
-              onClick={(e) => handleSectionClick(e, "how-it-works")}
-            >
-              How It Works
-            </a>
-          </li>
-          <li>
-            <NavLink
-              to="/safety"
-              className={({ isActive }) =>
-                `navbar__mobile-link ${isActive ? "navbar__mobile-link--active" : ""}`
-              }
-              onClick={() => setMenuOpen(false)}
-            >
-              Safety
-            </NavLink>
-          </li>
-          <li>
-            <a
-              href="#for-teams"
-              className="navbar__mobile-link"
-              onClick={(e) => handleSectionClick(e, "for-teams")}
-            >
-              For Healthcare Teams
-            </a>
-          </li>
-          <li>
-            <NavLink
-              to="/about"
-              className={({ isActive }) =>
-                `navbar__mobile-link ${isActive ? "navbar__mobile-link--active" : ""}`
-              }
-              onClick={() => setMenuOpen(false)}
-            >
-              About
-            </NavLink>
-          </li>
+          {isAuthenticated && user ? (
+            isProfessionalOrAdmin ? (
+              /* Mobile Professional / Admin Links */
+              <>
+                <li>
+                  <NavLink
+                    to="/professional/dashboard"
+                    className={({ isActive }) =>
+                      `navbar__mobile-link ${isActive ? "navbar__mobile-link--active" : ""}`
+                    }
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Dashboard
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/professional/queue"
+                    className={({ isActive }) =>
+                      `navbar__mobile-link ${isActive ? "navbar__mobile-link--active" : ""}`
+                    }
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Queue
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/professional/cases"
+                    className={({ isActive }) =>
+                      `navbar__mobile-link ${isActive ? "navbar__mobile-link--active" : ""}`
+                    }
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Cases
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/professional/profile"
+                    className={({ isActive }) =>
+                      `navbar__mobile-link ${isActive ? "navbar__mobile-link--active" : ""}`
+                    }
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Profile
+                  </NavLink>
+                </li>
+              </>
+            ) : (
+              /* Mobile Patient Links */
+              <>
+                <li>
+                  <NavLink
+                    to="/patient/dashboard"
+                    className={({ isActive }) =>
+                      `navbar__mobile-link ${isActive ? "navbar__mobile-link--active" : ""}`
+                    }
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Dashboard
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/patient/consultation"
+                    className={({ isActive }) =>
+                      `navbar__mobile-link ${isActive ? "navbar__mobile-link--active" : ""}`
+                    }
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Consultation
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/patient/cases"
+                    className={({ isActive }) =>
+                      `navbar__mobile-link ${isActive ? "navbar__mobile-link--active" : ""}`
+                    }
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Cases
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/patient/profile"
+                    className={({ isActive }) =>
+                      `navbar__mobile-link ${isActive ? "navbar__mobile-link--active" : ""}`
+                    }
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Profile
+                  </NavLink>
+                </li>
+              </>
+            )
+          ) : (
+            /* Mobile Public Links */
+            <>
+              <li>
+                <a
+                  href="#features"
+                  className="navbar__mobile-link"
+                  onClick={(e) => handleSectionClick(e, "features")}
+                >
+                  Product
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#how-it-works"
+                  className="navbar__mobile-link"
+                  onClick={(e) => handleSectionClick(e, "how-it-works")}
+                >
+                  How It Works
+                </a>
+              </li>
+              <li>
+                <NavLink
+                  to="/safety"
+                  className={({ isActive }) =>
+                    `navbar__mobile-link ${isActive ? "navbar__mobile-link--active" : ""}`
+                  }
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Safety
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="/about"
+                  className={({ isActive }) =>
+                    `navbar__mobile-link ${isActive ? "navbar__mobile-link--active" : ""}`
+                  }
+                  onClick={() => setMenuOpen(false)}
+                >
+                  About
+                </NavLink>
+              </li>
+            </>
+          )}
         </ul>
 
+        {/* Mobile Actions */}
         <div className="navbar__mobile-actions">
-          {user ? (
+          {isAuthenticated && user ? (
             <>
-              <Link
-                to={portalRoute}
-                className="navbar__cta"
-                onClick={() => setMenuOpen(false)}
-              >
-                Go to Workspace
-              </Link>
+              <div className="navbar__mobile-user-info">
+                <span className={`navbar__user-badge ${isProfessionalOrAdmin ? "navbar__user-badge--pro" : ""}`}>
+                  {user.role}
+                </span>
+                <span className="navbar__mobile-user-name">{user.name}</span>
+              </div>
               <button
                 type="button"
-                onClick={() => {
-                  if (logout) logout();
-                  setMenuOpen(false);
-                }}
+                onClick={handleLogout}
                 className="navbar__sign-in"
               >
                 Sign Out

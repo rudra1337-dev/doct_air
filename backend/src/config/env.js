@@ -1,6 +1,17 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+// Resolve directory of current file and load .env from backend root
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
 // Central environment-variable access — never hard-code secrets
-export const PORT       = process.env.PORT       || 5000;
-export const MONGO_URI  = process.env.MONGO_URI;
-export const JWT_SECRET = process.env.JWT_SECRET;
-export const NODE_ENV   = process.env.NODE_ENV   || 'development';
+export const PORT = process.env.PORT || 5000;
+export const MONGO_URI = process.env.MONGO_URI;
+export const JWT_SECRET = process.env.JWT_SECRET || 'doctair_dev_jwt_secret_key_safe_for_local_only';
+export const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+export const NODE_ENV = process.env.NODE_ENV || 'development';
 export const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+export const COOKIE_NAME = 'doctair_token';
+export const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds

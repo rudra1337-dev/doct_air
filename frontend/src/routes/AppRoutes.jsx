@@ -1,30 +1,47 @@
-import { Suspense, lazy } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
-import ProtectedRoute from "./ProtectedRoute";
-import RoleRoute from "./RoleRoute";
-import PublicLayout from "../layouts/PublicLayout";
-import AppLayout from "../layouts/AppLayout";
-import PageLoader from "../components/common/PageLoader";
+import { Suspense, lazy } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import ProtectedRoute from './ProtectedRoute';
+import RoleRoute from './RoleRoute';
+import PublicLayout from '../layouts/PublicLayout';
+import AppLayout from '../layouts/AppLayout';
+import PageLoader from '../components/common/PageLoader';
+import { useAuth } from '../context/AuthContext';
 
 // Lazy-loaded public views
-const LandingPage = lazy(() => import("../pages/public/LandingPage/LandingPage"));
-const SafetyPage = lazy(() => import("../pages/public/SafetyPage/SafetyPage"));
-const AboutPage = lazy(() => import("../pages/public/AboutPage/AboutPage"));
-const SignIn = lazy(() => import("../pages/public/SignIn/SignIn"));
-const SignUp = lazy(() => import("../pages/public/SignUp/SignUp"));
-const NotFound = lazy(() => import("../pages/public/NotFound/NotFound"));
+const LandingPage = lazy(() => import('../pages/public/LandingPage/LandingPage'));
+const SafetyPage = lazy(() => import('../pages/public/SafetyPage/SafetyPage'));
+const AboutPage = lazy(() => import('../pages/public/AboutPage/AboutPage'));
+const SignIn = lazy(() => import('../pages/public/SignIn/SignIn'));
+const SignUp = lazy(() => import('../pages/public/SignUp/SignUp'));
+const NotFound = lazy(() => import('../pages/public/NotFound/NotFound'));
 
 // Lazy-loaded patient workspace views
-const PatientDashboard = lazy(() => import("../pages/patient/PatientDashboard/PatientDashboard"));
-const PatientConsultation = lazy(() => import("../pages/patient/PatientConsultation/PatientConsultation"));
-const PatientCases = lazy(() => import("../pages/patient/PatientCases/PatientCases"));
-const PatientProfile = lazy(() => import("../pages/patient/PatientProfile/PatientProfile"));
+const PatientDashboard = lazy(() => import('../pages/patient/PatientDashboard/PatientDashboard'));
+const PatientConsultation = lazy(() => import('../pages/patient/PatientConsultation/PatientConsultation'));
+const PatientCases = lazy(() => import('../pages/patient/PatientCases/PatientCases'));
+const PatientProfile = lazy(() => import('../pages/patient/PatientProfile/PatientProfile'));
 
 // Lazy-loaded professional workspace views
-const ProfessionalDashboard = lazy(() => import("../pages/professional/ProfessionalDashboard/ProfessionalDashboard"));
-const ProfessionalQueue = lazy(() => import("../pages/professional/ProfessionalQueue/ProfessionalQueue"));
-const ProfessionalCases = lazy(() => import("../pages/professional/ProfessionalCases/ProfessionalCases"));
-const ProfessionalProfile = lazy(() => import("../pages/professional/ProfessionalProfile/ProfessionalProfile"));
+const ProfessionalDashboard = lazy(() => import('../pages/professional/ProfessionalDashboard/ProfessionalDashboard'));
+const ProfessionalQueue = lazy(() => import('../pages/professional/ProfessionalQueue/ProfessionalQueue'));
+const ProfessionalCases = lazy(() => import('../pages/professional/ProfessionalCases/ProfessionalCases'));
+const ProfessionalProfile = lazy(() => import('../pages/professional/ProfessionalProfile/ProfessionalProfile'));
+
+/**
+ * Route wrapper that redirects already-authenticated users directly to their workspace
+ */
+function PublicOnlyRoute({ children }) {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return <PageLoader message="Loading..." />;
+  if (isAuthenticated && user) {
+    const target =
+      user.role === 'PROFESSIONAL' || user.role === 'ADMIN'
+        ? '/professional/dashboard'
+        : '/patient/dashboard';
+    return <Navigate to={target} replace />;
+  }
+  return children;
+}
 
 export default function AppRoutes() {
   return (
@@ -41,21 +58,35 @@ export default function AppRoutes() {
           <Route path="/404" element={<NotFound />} />
         </Route>
 
-        {/* Authentication Routes */}
-        <Route path="/sign-in" element={<SignIn />} />
-        <Route path="/sign-up" element={<SignUp />} />
+        {/* Authentication Routes (redirect to workspace if already signed in) */}
+        <Route
+          path="/sign-in"
+          element={
+            <PublicOnlyRoute>
+              <SignIn />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/sign-up"
+          element={
+            <PublicOnlyRoute>
+              <SignUp />
+            </PublicOnlyRoute>
+          }
+        />
 
         {/* Backwards-compatible aliases */}
         <Route path="/login" element={<Navigate to="/sign-in" replace />} />
         <Route path="/signup" element={<Navigate to="/sign-up" replace />} />
         <Route path="/dashboard" element={<Navigate to="/patient/dashboard" replace />} />
 
-        {/* ── Patient Workspace Routes ────────────────────────────── */}
+        {/* ── Patient Workspace Routes (Requires PATIENT role) ──────── */}
         <Route
           path="/patient"
           element={
-            <ProtectedRoute enforce={false}>
-              <RoleRoute allowedRoles={["PATIENT"]} enforce={false}>
+            <ProtectedRoute>
+              <RoleRoute allowedRoles={['PATIENT']}>
                 <AppLayout role="patient" />
               </RoleRoute>
             </ProtectedRoute>
@@ -68,12 +99,12 @@ export default function AppRoutes() {
           <Route path="profile" element={<PatientProfile />} />
         </Route>
 
-        {/* ── Professional Workspace Routes ───────────────────────── */}
+        {/* ── Professional Workspace Routes (Requires PROFESSIONAL or ADMIN role) ─ */}
         <Route
           path="/professional"
           element={
-            <ProtectedRoute enforce={false}>
-              <RoleRoute allowedRoles={["PROFESSIONAL", "ADMIN"]} enforce={false}>
+            <ProtectedRoute>
+              <RoleRoute allowedRoles={['PROFESSIONAL', 'ADMIN']}>
                 <AppLayout role="professional" />
               </RoleRoute>
             </ProtectedRoute>
