@@ -1,0 +1,121 @@
+/* ── For Healthcare Teams ──────────────────────── */
+.for-teams {
+  padding: 6rem 1.5rem;
+  background: linear-gradient(180deg, #0a0e1a 0%, #0f1629 100%);
+}
+
+.for-teams__container { max-width: 1280px; margin: 0 auto; }
+
+.for-teams__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5rem;
+  align-items: center;
+}
+
+.for-teams__content { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.for-teams__eyebrow {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #0ea5e9;
+}
+
+.for-teams__heading {
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.for-teams__body {
+  color: #64748b;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.for-teams__benefits {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.for-teams__benefit {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+.for-teams__benefit svg { flex-shrink: 0; margin-top: 2px; }
+
+/* Flow diagram */
+.for-teams__flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.for-teams__flow-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.for-teams__flow-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  width: 100%;
+  transition: background 0.2s, border-color 0.2s;
+}
+.for-teams__flow-card:hover {
+  background: rgba(14,165,233,0.06);
+  border-color: rgba(14,165,233,0.2);
+}
+
+.for-teams__flow-dot {
+  width: 36px; height: 36px;
+  background: rgba(14,165,233,0.1);
+  border: 1px solid rgba(14,165,233,0.25);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+.for-teams__flow-label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+.for-teams__flow-sub {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 0.125rem;
+}
+
+.for-teams__flow-arrow {
+  padding-left: 1.5rem;
+  margin: 0.25rem 0;
+  opacity: 0.4;
+}
+
+@media (max-width: 900px) {
+  .for-teams__grid {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+}
