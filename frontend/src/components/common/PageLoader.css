@@ -1,0 +1,66 @@
+/* ── PageLoader ─────────────────────────────────────── */
+.page-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  width: 100%;
+  padding: 2rem;
+}
+
+.page-loader__wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  text-align: center;
+}
+
+.page-loader__spinner-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+}
+
+.page-loader__glow {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.25) 0%, transparent 70%);
+  animation: pulse-slow 2.5s ease-in-out infinite;
+}
+
+.page-loader__icon {
+  width: 48px;
+  height: 48px;
+}
+
+.page-loader__ring {
+  animation: loaderSpin 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  transform-origin: center;
+}
+
+.page-loader__text {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #94a3b8;
+  letter-spacing: 0.01em;
+}
+
+@keyframes loaderSpin {
+  0% {
+    transform: rotate(0deg);
+    stroke-dashoffset: 60;
+  }
+  50% {
+    stroke-dashoffset: 15;
+    transform: rotate(180deg);
+  }
+  100% {
+    stroke-dashoffset: 60;
+    transform: rotate(360deg);
+  }
+}

@@ -1,0 +1,148 @@
+/* ── AboutPage ──────────────────────────────────────── */
+.about-page {
+  padding: 4rem 1.5rem 6rem;
+}
+
+.about-page__container {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.about-page__header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.about-page__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(14, 165, 233, 0.1);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+  color: #38bdf8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.875rem;
+  border-radius: 9999px;
+  margin-bottom: 1.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.about-page__badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+}
+
+.about-page__title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.about-page__subtitle {
+  font-size: 1.125rem;
+  color: #94a3b8;
+  max-width: 720px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.about-page__story {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+  margin-bottom: 4rem;
+}
+
+.about-page__story-card {
+  background: rgba(17, 24, 39, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 2.25rem;
+}
+
+.about-page__story-card h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 1rem;
+}
+
+.about-page__story-card p {
+  color: #94a3b8;
+  line-height: 1.7;
+  font-size: 0.975rem;
+}
+
+.about-page__values {
+  margin-bottom: 4rem;
+}
+
+.about-page__values-heading {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.about-page__values-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.75rem;
+}
+
+.about-page__value-item {
+  background: rgba(15, 22, 41, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.about-page__value-num {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #38bdf8;
+  margin-bottom: 0.75rem;
+}
+
+.about-page__value-item h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #f8fafc;
+  margin-bottom: 0.5rem;
+}
+
+.about-page__value-item p {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.about-page__cta {
+  text-align: center;
+  background: rgba(15, 22, 41, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 3rem 2rem;
+}
+
+.about-page__cta h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 1.5rem;
+}
+
+.about-page__cta-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
