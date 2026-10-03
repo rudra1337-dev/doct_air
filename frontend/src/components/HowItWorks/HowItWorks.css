@@ -1,0 +1,121 @@
+/* ── How It Works ──────────────────────────────── */
+.hiw {
+  padding: 6rem 1.5rem;
+  background: #0a0e1a;
+}
+
+.hiw__container { max-width: 1280px; margin: 0 auto; }
+
+.hiw__header {
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto 3.5rem;
+}
+
+.hiw__eyebrow {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #0ea5e9;
+  margin-bottom: 0.75rem;
+}
+
+.hiw__heading {
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+.hiw__sub {
+  color: #64748b;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.hiw__steps {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  list-style: none;
+  position: relative;
+  counter-reset: step;
+}
+
+.hiw__step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1rem;
+  padding: 0 1rem;
+  position: relative;
+}
+
+.hiw__step-num {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #1e3a5f;
+}
+
+.hiw__step-icon {
+  width: 60px; height: 60px;
+  background: rgba(14,165,233,0.08);
+  border: 2px solid rgba(14,165,233,0.2);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+}
+.hiw__step:hover .hiw__step-icon {
+  background: rgba(14,165,233,0.15);
+  border-color: rgba(14,165,233,0.4);
+  transform: translateY(-4px);
+}
+
+.hiw__step-title {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.hiw__step-body {
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.hiw__connector {
+  position: absolute;
+  right: -14px;
+  top: 50px;
+  z-index: 1;
+}
+
+@media (max-width: 900px) {
+  .hiw__steps {
+    flex-direction: column;
+    align-items: stretch;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  .hiw__step {
+    flex-direction: row;
+    text-align: left;
+    align-items: flex-start;
+    padding: 1.25rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px;
+    gap: 1.25rem;
+  }
+  .hiw__step-num { display: none; }
+  .hiw__step-icon { flex-shrink: 0; }
+  .hiw__connector { display: none; }
+}
