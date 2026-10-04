@@ -4,16 +4,16 @@ import {
   login,
   getMe,
   logout,
-} from '../controllers/authController.js';
+} from './auth.controller.js';
 import {
   validateRegister,
   validateLogin,
-} from '../validators/authValidator.js';
-import { authenticateUser } from '../middleware/authMiddleware.js';
+} from './auth.validator.js';
+import { authenticateUser } from '../../middleware/authMiddleware.js';
 
 const router = Router();
 
-// Public auth endpoints
+// Public authentication endpoints
 router.post('/register', validateRegister, register);
 router.post('/login', validateLogin, login);
 router.post('/logout', logout);
