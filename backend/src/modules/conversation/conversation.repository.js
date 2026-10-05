@@ -52,3 +52,16 @@ export const createMessage = async ({
 export const findMessagesByConversationId = async (conversationId) => {
   return Message.find({ conversationId }).sort({ createdAt: 1 });
 };
+
+export const findRecentCompletedMessages = async (conversationId, limit = 20) => {
+  const messages = await Message.find({
+    conversationId,
+    status: 'completed',
+  })
+    .sort({ createdAt: -1 })
+    .limit(limit);
+
+  // Return in chronological order
+  return messages.reverse();
+};
+

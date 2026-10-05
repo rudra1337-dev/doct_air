@@ -62,5 +62,14 @@ export const validateCreateMessage = [
     .isIn(['text'])
     .withMessage('Only "text" input mode is currently supported'),
 
+  body('stream')
+    .optional()
+    .custom((val) => {
+      if (typeof val !== 'boolean' && val !== 'true' && val !== 'false') {
+        throw new Error('Stream parameter must be a boolean');
+      }
+      return true;
+    }),
+
   validate,
 ];

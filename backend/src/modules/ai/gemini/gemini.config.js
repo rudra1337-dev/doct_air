@@ -12,7 +12,9 @@ import { DEFAULT_HEALTHCARE_SYSTEM_INSTRUCTION } from './gemini.prompts.js';
  */
 export const getGeminiConfig = (overrides = {}) => {
   return {
-    apiKey: overrides.apiKey || GEMINI_API_KEY || process.env.GEMINI_API_KEY || '',
+    apiKey: overrides.apiKey !== undefined
+      ? overrides.apiKey
+      : (GEMINI_API_KEY || process.env.GEMINI_API_KEY || ''),
     model: overrides.model || GEMINI_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash',
     temperature: overrides.temperature !== undefined
       ? overrides.temperature
@@ -27,15 +29,17 @@ export const getGeminiConfig = (overrides = {}) => {
 /**
  * Checks if a Gemini API key is configured
  */
-export const isGeminiConfigured = (customApiKey = '') => {
-  const key = customApiKey || GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
+export const isGeminiConfigured = (customApiKey = null) => {
+  const key = customApiKey !== null
+    ? customApiKey
+    : (GEMINI_API_KEY || process.env.GEMINI_API_KEY || '');
   return typeof key === 'string' && key.trim().length > 0;
 };
 
 /**
  * Validates that Gemini is configured, throwing a clean GeminiConfigError if not
  */
-export const validateGeminiConfig = (customApiKey = '') => {
+export const validateGeminiConfig = (customApiKey = null) => {
   if (!isGeminiConfigured(customApiKey)) {
     throw new GeminiConfigError(
       'Gemini API key is not configured. Please set GEMINI_API_KEY in backend environment.'

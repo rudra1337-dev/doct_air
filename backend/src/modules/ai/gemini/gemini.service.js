@@ -88,10 +88,10 @@ export const generateResponse = async ({
   systemInstruction,
   config: configOverrides = {},
   client = null,
-  apiKey = '',
+  apiKey = null,
 } = {}) => {
   const activeConfig = getGeminiConfig(configOverrides);
-  const effectiveApiKey = apiKey || activeConfig.apiKey;
+  const effectiveApiKey = apiKey !== null ? apiKey : activeConfig.apiKey;
 
   // 1. Format and validate conversation context
   const contents = formatMessagesForGemini(messages);
@@ -138,6 +138,71 @@ export const generateResponse = async ({
     throw wrapGeminiError(error, effectiveApiKey);
   }
 };
+
+/**
+ * Streams the generated assistant response chunk-by-chunk from Gemini.
+ *
+ * @param {Object} options
+ * @param {Array<{role: string, content: string}>} options.messages - Standardized conversation context
+ * @param {string} [options.systemInstruction] - Optional override for system instruction
+ * @param {Object} [options.config] - Optional overrides for model, temperature, maxOutputTokens
+ * @param {Object} [options.client] - Optional injected client (for testing or custom instances)
+ * @param {string} [options.apiKey] - Optional custom API key
+ * @yields {{ delta: string, finishReason: string|null }}
+ */
+export async function* generateStream({
+  messages,
+  systemInstruction,
+  config: configOverrides = {},
+  client = null,
+  apiKey = null,
+} = {}) {
+  const activeConfig = getGeminiConfig(configOverrides);
+  const effectiveApiKey = apiKey !== null ? apiKey : activeConfig.apiKey;
+
+  // 1. Format and validate conversation context
+  const contents = formatMessagesForGemini(messages);
+
+  // 2. Resolve client instance
+  const aiClient = client || getGeminiClient(effectiveApiKey);
+
+  // 3. Prepare generation payload
+  const effectiveInstruction =
+    systemInstruction ||
+    activeConfig.systemInstruction ||
+    DEFAULT_HEALTHCARE_SYSTEM_INSTRUCTION;
+
+  let stream;
+  try {
+    stream = await aiClient.models.generateContentStream({
+      model: activeConfig.model,
+      contents,
+      config: {
+        systemInstruction: effectiveInstruction,
+        temperature: activeConfig.temperature,
+        maxOutputTokens: activeConfig.maxOutputTokens,
+      },
+    });
+  } catch (error) {
+    throw wrapGeminiError(error, effectiveApiKey);
+  }
+
+  try {
+    for await (const chunk of stream) {
+      const deltaText = chunk.text || '';
+      const finishReason = chunk.candidates?.[0]?.finishReason || null;
+      if (deltaText || finishReason) {
+        yield {
+          delta: deltaText,
+          finishReason,
+        };
+      }
+    }
+  } catch (error) {
+    throw wrapGeminiError(error, effectiveApiKey);
+  }
+}
+
 
 /**
  * Checks if Gemini service is configured and available

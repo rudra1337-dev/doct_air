@@ -11,8 +11,8 @@ let cachedKey = null;
  * @param {string} [customApiKey] - Optional API key override
  * @returns {GoogleGenAI} The initialized GoogleGenAI client instance
  */
-export const getGeminiClient = (customApiKey = '') => {
-  const config = getGeminiConfig({ apiKey: customApiKey });
+export const getGeminiClient = (customApiKey = null) => {
+  const config = getGeminiConfig(customApiKey !== null ? { apiKey: customApiKey } : {});
   validateGeminiConfig(config.apiKey);
 
   // Return cached client if the key matches

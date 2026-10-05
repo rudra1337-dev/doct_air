@@ -26,3 +26,9 @@ export const GEMINI_MAX_OUTPUT_TOKENS = process.env.GEMINI_MAX_OUTPUT_TOKENS
   ? parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, 10)
   : 1024;
 
+// Conversation & Context Configuration
+export const CONVERSATION_HISTORY_LIMIT = process.env.CONVERSATION_HISTORY_LIMIT
+  ? parseInt(process.env.CONVERSATION_HISTORY_LIMIT, 10)
+  : 20;
+
+

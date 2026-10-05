@@ -4,6 +4,7 @@ import {
   getUserConversationsHandler,
   getConversationMessagesHandler,
   addMessageHandler,
+  streamMessageHandler,
 } from './conversation.controller.js';
 import {
   validateCreateConversation,
@@ -26,5 +27,10 @@ router
   .route('/:conversationId/messages')
   .get(validateGetMessages, getConversationMessagesHandler)
   .post(validateCreateMessage, addMessageHandler);
+
+router
+  .route('/:conversationId/messages/stream')
+  .post(validateCreateMessage, streamMessageHandler);
+
 
 export default router;
