@@ -1,4 +1,4 @@
-import { formatDate } from '../../../../utils/formatDate';
+import { formatConversationDate } from '../../../../utils/formatDate';
 
 export default function ConversationSidebar({
   conversations = [],
@@ -6,21 +6,14 @@ export default function ConversationSidebar({
   onSelect,
   onNewChat,
   isLoading = false,
+  error = null,
+  onRetry,
   isOpen = false,
   onClose,
 }) {
-  const formatConvDate = (dateString) => {
-    if (!dateString) return '';
-    try {
-      return formatDate(dateString, { month: 'short', day: 'numeric' });
-    } catch {
-      return '';
-    }
-  };
-
   return (
     <>
-      {/* Backdrop for mobile view */}
+      {/* Backdrop for mobile drawer */}
       {isOpen && (
         <div
           className="chat-sidebar__backdrop"
@@ -39,6 +32,7 @@ export default function ConversationSidebar({
               onNewChat();
               if (onClose) onClose();
             }}
+            title="Start a new clinical consultation session"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 5v14M5 12h14" strokeLinecap="round" />
@@ -46,7 +40,7 @@ export default function ConversationSidebar({
             <span>New Consultation</span>
           </button>
 
-          {/* Close button for mobile */}
+          {/* Close button for mobile drawer */}
           <button
             type="button"
             className="chat-sidebar__close-btn"
@@ -63,15 +57,42 @@ export default function ConversationSidebar({
         <div className="chat-sidebar__list" role="navigation" aria-label="Past consultations">
           <div className="chat-sidebar__label">Previous Consultations</div>
 
+          {/* Loading Skeleton State */}
           {isLoading && (
-            <div className="chat-sidebar__loading">
+            <div className="chat-sidebar__loading" aria-label="Loading past consultations">
               <div className="chat-sidebar__skeleton-item" />
               <div className="chat-sidebar__skeleton-item" />
               <div className="chat-sidebar__skeleton-item" />
             </div>
           )}
 
-          {!isLoading && conversations.length === 0 && (
+          {/* Error State */}
+          {!isLoading && error && (
+            <div className="chat-sidebar__error" role="alert">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <p>{error}</p>
+              {onRetry && (
+                <button
+                  type="button"
+                  className="chat-sidebar__retry-btn"
+                  onClick={onRetry}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="1 4 1 10 7 10" />
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                  </svg>
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && !error && conversations.length === 0 && (
             <div className="chat-sidebar__empty">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -81,10 +102,16 @@ export default function ConversationSidebar({
             </div>
           )}
 
-          {!isLoading && conversations.length > 0 && (
+          {/* Conversation Items */}
+          {!isLoading && !error && conversations.length > 0 && (
             <ul className="chat-sidebar__items">
               {conversations.map((conv) => {
                 const isActive = conv.id === activeId;
+                const titleToDisplay = conv.displayTitle || conv.title || 'New Consultation';
+                const dateToDisplay = formatConversationDate(
+                  conv.lastMessageAt || conv.updatedAt || conv.createdAt
+                );
+
                 return (
                   <li key={conv.id}>
                     <button
@@ -95,6 +122,7 @@ export default function ConversationSidebar({
                         if (onClose) onClose();
                       }}
                       aria-current={isActive ? 'page' : undefined}
+                      title={titleToDisplay}
                     >
                       <div className="item-icon">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -102,13 +130,10 @@ export default function ConversationSidebar({
                         </svg>
                       </div>
                       <div className="item-body">
-                        <span className="item-title" title={conv.title || 'Consultation'}>
-                          {conv.title || 'New Consultation'}
-                        </span>
-                        <span className="item-date">
-                          {formatConvDate(conv.lastMessageAt || conv.createdAt)}
-                        </span>
+                        <span className="item-title">{titleToDisplay}</span>
+                        {dateToDisplay && <span className="item-date">{dateToDisplay}</span>}
                       </div>
+                      {isActive && <span className="item-active-dot" aria-hidden="true" />}
                     </button>
                   </li>
                 );

@@ -3,8 +3,11 @@ import { useEffect, useRef } from 'react';
 export default function ChatMessageList({
   messages = [],
   isLoading = false,
+  error = null,
   isStreaming = false,
   onRetry,
+  onRetryLoading,
+  onNewChat,
 }) {
   const bottomRef = useRef(null);
 
@@ -22,13 +25,70 @@ export default function ChatMessageList({
     }
   };
 
+  // Loading State
   if (isLoading) {
     return (
-      <div className="chat-messages chat-messages--loading">
+      <div className="chat-messages chat-messages--loading" role="status" aria-label="Loading messages">
         <div className="chat-loading-spinner">
           <div className="spinner-ring" />
           <span>Loading consultation session...</span>
         </div>
+      </div>
+    );
+  }
+
+  // Error State for loading conversation
+  if (error) {
+    return (
+      <div className="chat-messages chat-messages__error" role="alert">
+        <div className="chat-error-card">
+          <div className="emergency-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h3>Failed to Load Consultation</h3>
+          <p>{error}</p>
+          <div className="chat-error-actions">
+            {onRetryLoading && (
+              <button
+                type="button"
+                className="chat-error-btn-primary"
+                onClick={onRetryLoading}
+              >
+                Retry Loading
+              </button>
+            )}
+            {onNewChat && (
+              <button
+                type="button"
+                className="chat-error-btn-secondary"
+                onClick={onNewChat}
+              >
+                Start New Consultation
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty State for an open conversation with no messages yet
+  if (!isLoading && messages.length === 0) {
+    return (
+      <div className="chat-messages chat-messages__empty-conv">
+        <div className="empty-conv-icon" aria-hidden="true">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="1.5">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+          </svg>
+        </div>
+        <h3>Consultation Session Ready</h3>
+        <p>
+          Describe your symptoms, questions, or medical concerns below to begin your clinical intake dialog.
+        </p>
       </div>
     );
   }
