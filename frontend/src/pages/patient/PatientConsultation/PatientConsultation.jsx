@@ -59,6 +59,22 @@ export default function PatientConsultation() {
     stop: stopSpeech,
   } = useSpeechSynthesis();
 
+  // Coordinate STT and TTS mutual exclusion:
+  // Starting microphone cancels any active speech output
+  const handleToggleVoice = useCallback(() => {
+    stopSpeech();
+    toggleVoice();
+  }, [stopSpeech, toggleVoice]);
+
+  // Starting speech output cancels any active voice recognition
+  const handleToggleSpeak = useCallback(
+    (messageId, content) => {
+      resetVoiceState();
+      toggleSpeak(messageId, content);
+    },
+    [resetVoiceState, toggleSpeak]
+  );
+
   // Refs for race-condition prevention and stream abortion
   const isSubmittingRef = useRef(false);
   const streamAbortControllerRef = useRef(null);
@@ -117,8 +133,9 @@ export default function PatientConsultation() {
 
   // 4. Fetch messages whenever active conversationId changes (supports browser refresh & deep links)
   useEffect(() => {
-    // Stop any active speech synthesis when navigating or changing conversations
+    // Stop any active speech synthesis and voice recognition when navigating or changing conversations
     stopSpeech();
+    resetVoiceState();
 
     // If no conversationId is in the URL, clear messages and errors
     if (!conversationId) {
@@ -190,7 +207,7 @@ export default function PatientConsultation() {
     return () => {
       isCancelled = true;
     };
-  }, [conversationId, activeSessionKey, stopSpeech]);
+  }, [conversationId, activeSessionKey, stopSpeech, resetVoiceState]);
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -241,8 +258,9 @@ export default function PatientConsultation() {
     const promptText = (customPrompt || input).trim();
     if (!promptText || isStreaming || isSubmittingRef.current) return;
 
-    // Stop active speech playback if user sends new prompt
+    // Stop active speech playback and voice recognition if user sends new prompt
     stopSpeech();
+    resetVoiceState();
 
     isSubmittingRef.current = true;
     setInput('');
@@ -471,7 +489,7 @@ export default function PatientConsultation() {
             onNewChat={handleNewChat}
             speechSynthesisSupported={speechSynthesisSupported}
             activeSpeakingId={activeMessageId}
-            onToggleSpeak={toggleSpeak}
+            onToggleSpeak={handleToggleSpeak}
           />
         )}
 
@@ -479,12 +497,12 @@ export default function PatientConsultation() {
         <ChatInput
           value={input}
           onChange={setInput}
-          onSend={() => handleSend(input)}
+          onSend={(text) => handleSend(text || input)}
           disabled={isLoadingMessages || Boolean(messagesError)}
           isStreaming={isStreaming}
           speechRecognitionSupported={speechRecognitionSupported}
           voiceState={voiceState}
-          onToggleVoice={toggleVoice}
+          onToggleVoice={handleToggleVoice}
           voiceError={voiceError}
           interimTranscript={interimTranscript}
         />

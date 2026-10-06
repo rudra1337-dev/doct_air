@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { isSpeechSynthesisSupported } from '../utils/voiceCapabilities';
+import { isSpeechSynthesisSupported } from '../utils/voiceCapabilities.js';
 
 /**
  * Strips markdown and special formatting from text for natural browser speech synthesis.
@@ -25,9 +25,13 @@ export function stripMarkdownForSpeech(text) {
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     // Remove headings: # Title, ## Subtitle
     .replace(/^#{1,6}\s+/gm, '')
+    // Remove stray hash symbols
+    .replace(/#/g, '')
     // Remove bold and italic markers: **text**, *text*, __text__, _text_
     .replace(/(\*\*|__)(.*?)\1/g, '$2')
     .replace(/(\*|_)(.*?)\1/g, '$2')
+    // Remove stray asterisks
+    .replace(/\*/g, '')
     // Remove strikethrough: ~~text~~
     .replace(/~~(.*?)~~/g, '$1')
     // Remove blockquotes: > quote
@@ -109,8 +113,8 @@ export function useSpeechSynthesis() {
           utterance.lang = 'en-US';
         }
 
-        utterance.rate = 1.4;
-        utterance.pitch = 1.8;
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
 
         utterance.onstart = () => {
           if (mountedRef.current) {

@@ -35,7 +35,7 @@ export default function ChatInput({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (displayValue.trim() && !disabled && !isStreaming) {
-        onSend();
+        onSend(displayValue);
       }
     }
   };
@@ -68,7 +68,7 @@ export default function ChatInput({
         onSubmit={(e) => {
           e.preventDefault();
           if (!isSendDisabled) {
-            onSend();
+            onSend(displayValue);
           }
         }}
       >

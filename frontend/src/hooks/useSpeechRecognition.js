@@ -207,6 +207,7 @@ export function useSpeechRecognition({
 
       recognition.onend = () => {
         if (!isMountedRef.current) return;
+        if (stoppingTimeoutRef.current) clearTimeout(stoppingTimeoutRef.current);
         setInterimTranscript('');
         recognitionRef.current = null;
 
