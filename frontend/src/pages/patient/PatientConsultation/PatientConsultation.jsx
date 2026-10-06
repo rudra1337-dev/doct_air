@@ -12,6 +12,7 @@ import {
 } from './utils/conversationUtils';
 import useVoiceCapabilities from '../../../hooks/useVoiceCapabilities';
 import useSpeechRecognition from '../../../hooks/useSpeechRecognition';
+import useSpeechSynthesis from '../../../hooks/useSpeechSynthesis';
 import './PatientConsultation.css';
 
 export default function PatientConsultation() {
@@ -39,8 +40,8 @@ export default function PatientConsultation() {
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [lastFailedPrompt, setLastFailedPrompt] = useState('');
 
-  // Voice capabilities & Push-to-Talk Speech Recognition
-  const { speechRecognitionSupported } = useVoiceCapabilities();
+  // Voice capabilities & Push-to-Talk Speech Recognition & Text-to-Speech
+  const { speechRecognitionSupported, speechSynthesisSupported } = useVoiceCapabilities();
   const {
     voiceState,
     voiceError,
@@ -51,6 +52,12 @@ export default function PatientConsultation() {
     currentText: input,
     onTranscript: setInput,
   });
+
+  const {
+    activeMessageId,
+    toggleSpeak,
+    stop: stopSpeech,
+  } = useSpeechSynthesis();
 
   // Refs for race-condition prevention and stream abortion
   const isSubmittingRef = useRef(false);
@@ -110,6 +117,9 @@ export default function PatientConsultation() {
 
   // 4. Fetch messages whenever active conversationId changes (supports browser refresh & deep links)
   useEffect(() => {
+    // Stop any active speech synthesis when navigating or changing conversations
+    stopSpeech();
+
     // If no conversationId is in the URL, clear messages and errors
     if (!conversationId) {
       setMessages([]);
@@ -180,7 +190,7 @@ export default function PatientConsultation() {
     return () => {
       isCancelled = true;
     };
-  }, [conversationId, activeSessionKey]);
+  }, [conversationId, activeSessionKey, stopSpeech]);
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -204,6 +214,7 @@ export default function PatientConsultation() {
       sessionStorage.removeItem(activeSessionKey);
     }
 
+    stopSpeech();
     resetVoiceState();
     setMessages([]);
     setMessagesError(null);
@@ -219,6 +230,7 @@ export default function PatientConsultation() {
         streamAbortControllerRef.current = null;
         setIsStreaming(false);
       }
+      stopSpeech();
       resetVoiceState();
       navigate(`/patient/consultation/${id}`);
     }
@@ -228,6 +240,9 @@ export default function PatientConsultation() {
   const handleSend = async (customPrompt) => {
     const promptText = (customPrompt || input).trim();
     if (!promptText || isStreaming || isSubmittingRef.current) return;
+
+    // Stop active speech playback if user sends new prompt
+    stopSpeech();
 
     isSubmittingRef.current = true;
     setInput('');
@@ -454,6 +469,9 @@ export default function PatientConsultation() {
               }
             }}
             onNewChat={handleNewChat}
+            speechSynthesisSupported={speechSynthesisSupported}
+            activeSpeakingId={activeMessageId}
+            onToggleSpeak={toggleSpeak}
           />
         )}
 

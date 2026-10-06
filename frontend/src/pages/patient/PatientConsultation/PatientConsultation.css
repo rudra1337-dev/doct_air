@@ -730,6 +730,103 @@
   color: #ffffff;
 }
 
+/* ── 4b. Assistant Message Action Bar & TTS Speaker (Step 2.4) ── */
+
+.chat-bubble-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.chat-speaker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.chat-speaker-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #f1f5f9;
+}
+
+.chat-speaker-btn:focus-visible {
+  outline: 2px solid #0ea5e9;
+  outline-offset: 1px;
+}
+
+/* Speaking State */
+.chat-speaker-btn--speaking {
+  background: rgba(14, 165, 233, 0.15);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+}
+
+.chat-speaker-btn--speaking:hover {
+  background: rgba(14, 165, 233, 0.22);
+  border-color: rgba(56, 189, 248, 0.55);
+  color: #7dd3fc;
+}
+
+.chat-speaker-icon {
+  flex-shrink: 0;
+}
+
+.chat-speaker-label {
+  line-height: 1;
+}
+
+/* Audio Wave Equalizer Bars */
+.chat-speaker-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+  margin-right: 1px;
+}
+
+.speaker-bar {
+  width: 2px;
+  background-color: #38bdf8;
+  border-radius: 1px;
+  animation: soundBars 0.9s ease-in-out infinite alternate;
+}
+
+.speaker-bar.bar-1 {
+  height: 5px;
+  animation-delay: 0s;
+}
+
+.speaker-bar.bar-2 {
+  height: 11px;
+  animation-delay: 0.25s;
+}
+
+.speaker-bar.bar-3 {
+  height: 7px;
+  animation-delay: 0.5s;
+}
+
+@keyframes soundBars {
+  0% {
+    height: 4px;
+  }
+  100% {
+    height: 12px;
+  }
+}
+
 /* ── 5. Welcome Screen ────────────────────────────────── */
 
 .chat-welcome {
