@@ -10,6 +10,8 @@ export default function ConversationSidebar({
   onRetry,
   isOpen = false,
   onClose,
+  isDesktopOpen = true,
+  onToggleDesktop,
 }) {
   return (
     <>
@@ -22,7 +24,11 @@ export default function ConversationSidebar({
         />
       )}
 
-      <aside className={`chat-sidebar ${isOpen ? 'chat-sidebar--open' : ''}`}>
+      <aside
+        className={`chat-sidebar ${isOpen ? 'chat-sidebar--open' : ''} ${
+          !isDesktopOpen ? 'chat-sidebar--collapsed' : ''
+        }`}
+      >
         {/* Sidebar Header with New Chat button */}
         <div className="chat-sidebar__header">
           <button
@@ -39,6 +45,22 @@ export default function ConversationSidebar({
             </svg>
             <span>New Consultation</span>
           </button>
+
+          {/* Collapse button on desktop */}
+          {onToggleDesktop && (
+            <button
+              type="button"
+              className="chat-sidebar__desktop-toggle-btn"
+              onClick={onToggleDesktop}
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+              </svg>
+            </button>
+          )}
 
           {/* Close button for mobile drawer */}
           <button

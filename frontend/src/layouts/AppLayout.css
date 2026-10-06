@@ -7,6 +7,12 @@
   color: #e2e8f0;
 }
 
+.app-layout--full-screen {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden !important;
+}
+
 .app-layout__header {
   position: sticky;
   top: 0;
@@ -214,6 +220,19 @@
   width: 100%;
   margin: 0 auto;
   padding: 2rem 1.5rem;
+}
+
+/* Full-bleed workspace (used by Chat Consultation for edge-to-edge layout like ChatGPT) */
+.app-layout__content--full {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: calc(100vh - 64px);
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Footer */

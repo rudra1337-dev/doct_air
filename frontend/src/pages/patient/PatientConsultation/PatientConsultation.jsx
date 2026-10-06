@@ -34,11 +34,13 @@ export default function PatientConsultation() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [input, setInput] = useState('');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [lastFailedPrompt, setLastFailedPrompt] = useState('');
 
   // Refs for race-condition prevention and stream abortion
   const isSubmittingRef = useRef(false);
   const streamAbortControllerRef = useRef(null);
+  const isNewConversationInitiatedRef = useRef(null);
 
   // Active conversation object from list
   const activeConv = conversations.find((c) => c.id === conversationId);
@@ -98,6 +100,13 @@ export default function PatientConsultation() {
       setMessages([]);
       setMessagesError(null);
       setIsLoadingMessages(false);
+      return;
+    }
+
+    // If this route transition was triggered by handleSend creating a new conversation,
+    // do NOT abort the in-flight stream or overwrite the optimistic messages!
+    if (isNewConversationInitiatedRef.current === conversationId) {
+      isNewConversationInitiatedRef.current = null;
       return;
     }
 
@@ -222,6 +231,7 @@ export default function PatientConsultation() {
             displayTitle: titleSnippet,
           };
           targetConvId = newConv.id;
+          isNewConversationInitiatedRef.current = newConv.id;
 
           // Prepend and sort conversations list
           setConversations((prev) => sortConversationsByRecent([newConv, ...prev]));
@@ -369,25 +379,32 @@ export default function PatientConsultation() {
         onRetry={loadConversations}
         isOpen={mobileSidebarOpen}
         onClose={() => setMobileSidebarOpen(false)}
+        isDesktopOpen={desktopSidebarOpen}
+        onToggleDesktop={() => setDesktopSidebarOpen((prev) => !prev)}
       />
 
       {/* Main Chat Workspace */}
       <div className="chat-main">
-        {/* Top Header */}
+        {/* Compact Header */}
         <header className="chat-main__header">
           <div className="chat-main__header-left">
             <button
               type="button"
               className="chat-sidebar-toggle-btn"
-              onClick={() => setMobileSidebarOpen(true)}
-              aria-label="Open past consultations menu"
+              onClick={() => {
+                if (window.innerWidth <= 768) {
+                  setMobileSidebarOpen((prev) => !prev);
+                } else {
+                  setDesktopSidebarOpen((prev) => !prev);
+                }
+              }}
+              aria-label={desktopSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+              title={desktopSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="18" x2="21" y2="18" />
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <line x1="9" y1="3" x2="9" y2="21" />
               </svg>
-              <span>Chats</span>
             </button>
 
             <h1 className="chat-main__title" title={currentTitle}>
@@ -395,11 +412,9 @@ export default function PatientConsultation() {
             </h1>
           </div>
 
-          <div className="chat-main__badge" title="Verified clinical intake dialog model">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            <span>Intake Protocol Active</span>
+          <div className="chat-main__badge" title="Verified AI intake dialog active">
+            <span className="chat-main__badge-dot" aria-hidden="true" />
+            <span>Intake Protocol</span>
           </div>
         </header>
 

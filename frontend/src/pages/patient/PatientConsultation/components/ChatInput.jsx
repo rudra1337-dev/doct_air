@@ -49,7 +49,7 @@ export default function ChatInput({
           placeholder={
             isStreaming
               ? 'Assistant is responding...'
-              : 'Describe your symptoms, health concerns, or ask a question...'
+              : 'Message DoctAir (describe symptoms or medical questions)...'
           }
           rows={1}
           disabled={disabled || isStreaming}
@@ -66,9 +66,9 @@ export default function ChatInput({
           {isStreaming ? (
             <div className="chat-send-spinner" aria-hidden="true" />
           ) : (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="12" y1="19" x2="12" y2="5" strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points="5 12 12 5 19 12" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           )}
         </button>
@@ -76,7 +76,7 @@ export default function ChatInput({
 
       <div className="chat-disclaimer">
         <span>
-          DoctAir AI provides conversational intake and information. Not a licensed healthcare diagnosis.
+          DoctAir AI provides intake assistance and health information. Not a substitute for professional diagnosis.
         </span>
       </div>
     </div>
