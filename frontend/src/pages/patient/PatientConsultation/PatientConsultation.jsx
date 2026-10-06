@@ -11,7 +11,7 @@ import {
   sortConversationsByRecent,
 } from './utils/conversationUtils';
 import useVoiceCapabilities from '../../../hooks/useVoiceCapabilities';
-import useVoiceState from '../../../hooks/useVoiceState';
+import useSpeechRecognition from '../../../hooks/useSpeechRecognition';
 import './PatientConsultation.css';
 
 export default function PatientConsultation() {
@@ -39,13 +39,18 @@ export default function PatientConsultation() {
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [lastFailedPrompt, setLastFailedPrompt] = useState('');
 
-  // Voice capabilities & Push-to-Talk state
+  // Voice capabilities & Push-to-Talk Speech Recognition
   const { speechRecognitionSupported } = useVoiceCapabilities();
   const {
     voiceState,
     voiceError,
+    interimTranscript,
     toggleVoice,
-  } = useVoiceState();
+    resetVoiceState,
+  } = useSpeechRecognition({
+    currentText: input,
+    onTranscript: setInput,
+  });
 
   // Refs for race-condition prevention and stream abortion
   const isSubmittingRef = useRef(false);
@@ -199,6 +204,7 @@ export default function PatientConsultation() {
       sessionStorage.removeItem(activeSessionKey);
     }
 
+    resetVoiceState();
     setMessages([]);
     setMessagesError(null);
     setInput('');
@@ -213,6 +219,7 @@ export default function PatientConsultation() {
         streamAbortControllerRef.current = null;
         setIsStreaming(false);
       }
+      resetVoiceState();
       navigate(`/patient/consultation/${id}`);
     }
   };
@@ -461,6 +468,7 @@ export default function PatientConsultation() {
           voiceState={voiceState}
           onToggleVoice={toggleVoice}
           voiceError={voiceError}
+          interimTranscript={interimTranscript}
         />
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import { combineText } from '../../../../hooks/useSpeechRecognition.js';
 
 export default function ChatInput({
   value = '',
@@ -10,8 +11,16 @@ export default function ChatInput({
   voiceState = 'idle',
   onToggleVoice,
   voiceError = null,
+  interimTranscript = '',
 }) {
   const textareaRef = useRef(null);
+
+  const isListening = voiceState === 'listening';
+  const isStopping = voiceState === 'stopping';
+
+  // Live text displayed in composer (base text + live interim speech while listening)
+  const displayValue =
+    isListening && interimTranscript ? combineText(value, interimTranscript) : value;
 
   // Auto-resize textarea height as content expands
   useEffect(() => {
@@ -20,25 +29,25 @@ export default function ChatInput({
       const newHeight = Math.min(textareaRef.current.scrollHeight, 140);
       textareaRef.current.style.height = `${newHeight}px`;
     }
-  }, [value]);
+  }, [displayValue]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (value.trim() && !disabled && !isStreaming) {
+      if (displayValue.trim() && !disabled && !isStreaming) {
         onSend();
       }
     }
   };
 
-  const isSendDisabled = disabled || isStreaming || !value.trim();
-  const isListening = voiceState === 'listening';
-  const isStopping = voiceState === 'stopping';
+  const isSendDisabled = disabled || isStreaming || !displayValue.trim();
 
   // Dynamic placeholder adapting to conversation and voice state
   let placeholderText = 'Message DoctAir (describe symptoms or medical questions)...';
   if (isListening) {
-    placeholderText = 'Listening... Speak clearly into your microphone';
+    placeholderText = displayValue
+      ? ''
+      : 'Listening... Speak clearly into your microphone';
   } else if (isStopping) {
     placeholderText = 'Stopping voice input...';
   } else if (isStreaming) {
@@ -66,7 +75,7 @@ export default function ChatInput({
         <textarea
           ref={textareaRef}
           className="chat-textarea"
-          value={value}
+          value={displayValue}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholderText}
