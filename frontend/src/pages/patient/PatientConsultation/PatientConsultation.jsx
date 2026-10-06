@@ -10,6 +10,8 @@ import {
   deriveConversationTitle,
   sortConversationsByRecent,
 } from './utils/conversationUtils';
+import useVoiceCapabilities from '../../../hooks/useVoiceCapabilities';
+import useVoiceState from '../../../hooks/useVoiceState';
 import './PatientConsultation.css';
 
 export default function PatientConsultation() {
@@ -36,6 +38,14 @@ export default function PatientConsultation() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [lastFailedPrompt, setLastFailedPrompt] = useState('');
+
+  // Voice capabilities & Push-to-Talk state
+  const { speechRecognitionSupported } = useVoiceCapabilities();
+  const {
+    voiceState,
+    voiceError,
+    toggleVoice,
+  } = useVoiceState();
 
   // Refs for race-condition prevention and stream abortion
   const isSubmittingRef = useRef(false);
@@ -447,6 +457,10 @@ export default function PatientConsultation() {
           onSend={() => handleSend(input)}
           disabled={isLoadingMessages || Boolean(messagesError)}
           isStreaming={isStreaming}
+          speechRecognitionSupported={speechRecognitionSupported}
+          voiceState={voiceState}
+          onToggleVoice={toggleVoice}
+          voiceError={voiceError}
         />
       </div>
     </div>
