@@ -95,6 +95,7 @@ export default function AppRoutes() {
           <Route index element={<Navigate to="/patient/dashboard" replace />} />
           <Route path="dashboard" element={<PatientDashboard />} />
           <Route path="consultation" element={<PatientConsultation />} />
+          <Route path="consultation/:conversationId" element={<PatientConsultation />} />
           <Route path="cases" element={<PatientCases />} />
           <Route path="profile" element={<PatientProfile />} />
         </Route>

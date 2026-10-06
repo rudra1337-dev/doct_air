@@ -110,7 +110,7 @@ export const streamUserMessageWithAI = async ({
   onMessageComplete,
   onMessageError,
   client = null,
-  apiKey = '',
+  apiKey = null,
 } = {}) => {
   // 1. Verify conversation ownership
   const conversation = await conversationRepo.findConversationById(conversationId);
