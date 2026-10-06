@@ -1,6 +1,6 @@
-import asyncHandler from '../utils/asyncHandler.js';
-import { registerUser, loginUser } from '../services/authService.js';
-import { generateToken, setAuthCookie, clearAuthCookie } from '../utils/token.js';
+import asyncHandler from '../../utils/asyncHandler.js';
+import { registerUser, loginUser } from './auth.service.js';
+import { generateToken, setAuthCookie, clearAuthCookie } from '../../utils/token.js';
 
 /**
  * @route   POST /api/auth/register

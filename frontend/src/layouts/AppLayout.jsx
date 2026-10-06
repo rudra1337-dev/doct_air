@@ -33,8 +33,10 @@ export default function AppLayout({ role = "patient" }) {
     setMobileMenuOpen(false);
   }
 
+  const isConsultation = location.pathname.startsWith('/patient/consultation');
+
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${isConsultation ? "app-layout--full-screen" : ""}`}>
       {/* Application Top Navigation Bar */}
       <header className="app-layout__header" role="banner">
         <div className="app-layout__header-inner">
@@ -135,19 +137,24 @@ export default function AppLayout({ role = "patient" }) {
       </header>
 
       {/* Main Workspace Content Area */}
-      <main id="app-main-content" className="app-layout__content">
+      <main
+        id="app-main-content"
+        className={`app-layout__content ${location.pathname.startsWith('/patient/consultation') ? "app-layout__content--full" : ""}`}
+      >
         <Outlet />
       </main>
 
-      {/* Application Footer */}
-      <footer className="app-layout__footer" role="contentinfo">
-        <div className="app-layout__footer-inner">
-          <p className="app-layout__footer-text">
-            DoctAir Decision Support Platform &bull; Human-in-the-loop clinical review
-          </p>
-          <span className="app-layout__footer-status">System Operational</span>
-        </div>
-      </footer>
+      {/* Application Footer (omitted on full-screen consultation) */}
+      {!location.pathname.startsWith('/patient/consultation') && (
+        <footer className="app-layout__footer" role="contentinfo">
+          <div className="app-layout__footer-inner">
+            <p className="app-layout__footer-text">
+              DoctAir Decision Support Platform &bull; Human-in-the-loop clinical review
+            </p>
+            <span className="app-layout__footer-status">System Operational</span>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

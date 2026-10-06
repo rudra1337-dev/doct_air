@@ -1,9 +1,11 @@
 import { Router } from 'express';
-import authRoutes from './authRoutes.js';
+import authRoutes from '../modules/auth/auth.routes.js';
+import conversationRoutes from '../modules/conversation/conversation.routes.js';
 
 const router = Router();
 
-// Mount authentication routes under /api/auth
+// Mount feature routers
 router.use('/auth', authRoutes);
+router.use('/conversations', conversationRoutes);
 
 export default router;

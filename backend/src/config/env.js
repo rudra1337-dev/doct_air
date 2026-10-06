@@ -15,3 +15,20 @@ export const NODE_ENV = process.env.NODE_ENV || 'development';
 export const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 export const COOKIE_NAME = 'doctair_token';
 export const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+
+// Gemini AI Configuration
+export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+export const GEMINI_TEMPERATURE = process.env.GEMINI_TEMPERATURE
+  ? parseFloat(process.env.GEMINI_TEMPERATURE)
+  : 0.3;
+export const GEMINI_MAX_OUTPUT_TOKENS = process.env.GEMINI_MAX_OUTPUT_TOKENS
+  ? parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, 10)
+  : 1024;
+
+// Conversation & Context Configuration
+export const CONVERSATION_HISTORY_LIMIT = process.env.CONVERSATION_HISTORY_LIMIT
+  ? parseInt(process.env.CONVERSATION_HISTORY_LIMIT, 10)
+  : 20;
+
+

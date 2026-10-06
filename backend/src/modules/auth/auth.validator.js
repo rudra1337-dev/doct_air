@@ -1,5 +1,5 @@
 import { body } from 'express-validator';
-import { validate } from '../middleware/validateMiddleware.js';
+import { validate } from '../../middleware/validateMiddleware.js';
 
 export const validateRegister = [
   body('name')

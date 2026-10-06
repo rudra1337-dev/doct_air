@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import User from '../models/User.js';
+import User from '../../models/User.js';
 
 export const registerUser = async ({ name, email, password }) => {
   const normalizedEmail = email.toLowerCase().trim();
