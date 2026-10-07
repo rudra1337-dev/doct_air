@@ -1,5 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { combineText } from '../../../../hooks/useSpeechRecognition.js';
+import ChatDocumentTray from './ChatDocumentTray.jsx';
+import { validatePdfFile } from '../utils/documentUtils.js';
 
 export default function ChatInput({
   value = '',
@@ -12,8 +14,17 @@ export default function ChatInput({
   onToggleVoice,
   voiceError = null,
   interimTranscript = '',
+  documents = [],
+  isUploadingDocument = false,
+  uploadingFileName = '',
+  onAttachDocument,
+  onDeleteDocument,
+  isDeletingDocumentId = null,
+  documentError = null,
+  onClearDocumentError,
 }) {
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const isListening = voiceState === 'listening';
   const isStopping = voiceState === 'stopping';
@@ -40,6 +51,24 @@ export default function ChatInput({
     }
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input so re-selecting same file triggers change
+    e.target.value = '';
+
+    const validation = validatePdfFile(file, 10);
+    if (!validation.valid) {
+      if (onClearDocumentError) onClearDocumentError(validation.error);
+      return;
+    }
+
+    if (onAttachDocument) {
+      onAttachDocument(file);
+    }
+  };
+
   const isSendDisabled = disabled || isStreaming || !displayValue.trim();
 
   // Dynamic placeholder adapting to conversation and voice state
@@ -56,12 +85,38 @@ export default function ChatInput({
 
   return (
     <div className="chat-input-wrapper">
+      {/* Document Error Notice */}
+      {documentError && (
+        <div className="chat-input-doc-error" role="alert">
+          <span>{documentError}</span>
+          {onClearDocumentError && (
+            <button
+              type="button"
+              className="chat-doc-error-dismiss"
+              onClick={onClearDocumentError}
+              aria-label="Dismiss document error"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Voice Error Notice */}
       {voiceError && (
         <div className="chat-input-voice-error" role="alert">
           <span>{voiceError}</span>
         </div>
       )}
+
+      {/* Attached Documents Tray */}
+      <ChatDocumentTray
+        documents={documents}
+        isUploading={isUploadingDocument}
+        uploadingFileName={uploadingFileName}
+        onDeleteDocument={onDeleteDocument}
+        isDeletingId={isDeletingDocumentId}
+      />
 
       <form
         className={`chat-input-container ${isListening ? 'chat-input-container--listening' : ''}`}
@@ -72,6 +127,16 @@ export default function ChatInput({
           }
         }}
       >
+        {/* Hidden File Input for PDF Upload */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,application/pdf"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+          disabled={disabled || isStreaming || isUploadingDocument}
+        />
+
         <textarea
           ref={textareaRef}
           className="chat-textarea"
@@ -83,6 +148,26 @@ export default function ChatInput({
           disabled={disabled || isStreaming}
           aria-label="Message input"
         />
+
+        {/* PDF Attachment Button */}
+        {onAttachDocument && (
+          <button
+            type="button"
+            className={`chat-attach-btn ${isUploadingDocument ? 'chat-attach-btn--uploading' : ''}`}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled || isStreaming || isUploadingDocument}
+            aria-label="Attach PDF medical report"
+            title="Attach PDF medical report (max 10MB)"
+          >
+            {isUploadingDocument ? (
+              <div className="chat-attach-spinner" aria-hidden="true" />
+            ) : (
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+              </svg>
+            )}
+          </button>
+        )}
 
         {/* Push-to-Talk Microphone Button (only if Speech Recognition is supported) */}
         {speechRecognitionSupported && onToggleVoice && (

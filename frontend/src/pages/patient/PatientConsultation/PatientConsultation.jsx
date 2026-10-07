@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import conversationService from '../../../services/conversationService';
+import documentService from '../../../services/documentService';
 import ConversationSidebar from './components/ConversationSidebar';
 import ChatMessageList from './components/ChatMessageList';
 import ChatInput from './components/ChatInput';
@@ -39,6 +40,13 @@ export default function PatientConsultation() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [lastFailedPrompt, setLastFailedPrompt] = useState('');
+
+  // Attached Medical Reports state (Step 3.1)
+  const [documents, setDocuments] = useState([]);
+  const [isUploadingDocument, setIsUploadingDocument] = useState(false);
+  const [uploadingFileName, setUploadingFileName] = useState('');
+  const [documentError, setDocumentError] = useState(null);
+  const [isDeletingDocumentId, setIsDeletingDocumentId] = useState(null);
 
   // Voice capabilities & Push-to-Talk Speech Recognition & Text-to-Speech
   const { speechRecognitionSupported, speechSynthesisSupported } = useVoiceCapabilities();
@@ -141,6 +149,8 @@ export default function PatientConsultation() {
     if (!conversationId) {
       setMessages([]);
       setMessagesError(null);
+      setDocuments([]);
+      setDocumentError(null);
       setIsLoadingMessages(false);
       return;
     }
@@ -161,6 +171,7 @@ export default function PatientConsultation() {
 
     let isCancelled = false;
 
+    // Load messages for active conversation
     const loadMessages = async () => {
       try {
         setIsLoadingMessages(true);
@@ -202,7 +213,22 @@ export default function PatientConsultation() {
       }
     };
 
+    // Load attached documents for active conversation (Step 3.1)
+    const loadDocuments = async () => {
+      try {
+        const docRes = await documentService.getDocuments(conversationId);
+        if (!isCancelled && docRes?.success && Array.isArray(docRes.documents)) {
+          setDocuments(docRes.documents);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          console.warn('Failed to load consultation documents:', err.message);
+        }
+      }
+    };
+
     loadMessages();
+    loadDocuments();
 
     return () => {
       isCancelled = true;
@@ -235,6 +261,10 @@ export default function PatientConsultation() {
     resetVoiceState();
     setMessages([]);
     setMessagesError(null);
+    setDocuments([]);
+    setDocumentError(null);
+    setIsUploadingDocument(false);
+    setUploadingFileName('');
     setInput('');
     navigate('/patient/consultation', { state: { explicitNew: true } });
   };
@@ -408,6 +438,87 @@ export default function PatientConsultation() {
     }
   };
 
+  // 8. Attach PDF Medical Report (Step 3.1)
+  const handleAttachDocument = async (file) => {
+    if (!file || isUploadingDocument) return;
+
+    setDocumentError(null);
+    setIsUploadingDocument(true);
+    setUploadingFileName(file.name);
+
+    let targetConvId = conversationId;
+
+    // If attaching from an empty state without active conversationId, initialize conversation first
+    if (!targetConvId) {
+      try {
+        const titleSnippet =
+          file.name.replace(/\.pdf$/i, '').slice(0, 40).trim() || 'Medical Report Consultation';
+        const createRes = await conversationService.createConversation(titleSnippet);
+
+        if (createRes?.success && createRes.conversation?.id) {
+          const newConv = {
+            ...createRes.conversation,
+            displayTitle: titleSnippet,
+          };
+          targetConvId = newConv.id;
+          isNewConversationInitiatedRef.current = newConv.id;
+
+          setConversations((prev) => sortConversationsByRecent([newConv, ...prev]));
+
+          if (activeSessionKey) {
+            sessionStorage.setItem(activeSessionKey, newConv.id);
+          }
+          navigate(`/patient/consultation/${newConv.id}`, { replace: true });
+        } else {
+          throw new Error('Could not initialize consultation session for document.');
+        }
+      } catch (err) {
+        console.error('Conversation initialization failed during document upload:', err);
+        setDocumentError(err.message || 'Failed to start consultation for report.');
+        setIsUploadingDocument(false);
+        setUploadingFileName('');
+        return;
+      }
+    }
+
+    try {
+      const uploadRes = await documentService.uploadDocument(targetConvId, file);
+      if (uploadRes?.success && uploadRes.document) {
+        setDocuments((prev) => [...prev, uploadRes.document]);
+      } else {
+        throw new Error(uploadRes?.message || 'Failed to attach medical report.');
+      }
+    } catch (err) {
+      console.error('Document upload error:', err);
+      setDocumentError(err.message || 'The report could not be uploaded. Please try again.');
+    } finally {
+      setIsUploadingDocument(false);
+      setUploadingFileName('');
+    }
+  };
+
+  // 9. Delete Attached Document
+  const handleDeleteDocument = async (docId) => {
+    if (!conversationId || !docId || isDeletingDocumentId) return;
+
+    setIsDeletingDocumentId(docId);
+    setDocumentError(null);
+
+    try {
+      const res = await documentService.deleteDocument(conversationId, docId);
+      if (res?.success) {
+        setDocuments((prev) => prev.filter((d) => d.id !== docId));
+      } else {
+        throw new Error(res?.message || 'Failed to delete report.');
+      }
+    } catch (err) {
+      console.error('Document delete error:', err);
+      setDocumentError(err.message || 'Failed to remove document.');
+    } finally {
+      setIsDeletingDocumentId(null);
+    }
+  };
+
   // Derive header title
   const currentTitle =
     activeConv?.displayTitle ||
@@ -462,9 +573,25 @@ export default function PatientConsultation() {
             </h1>
           </div>
 
-          <div className="chat-main__badge" title="Verified AI intake dialog active">
-            <span className="chat-main__badge-dot" aria-hidden="true" />
-            <span>Intake Protocol</span>
+          <div className="chat-main__header-right">
+            {/* Attached reports badge */}
+            {documents.length > 0 && (
+              <div
+                className="chat-main__docs-badge"
+                title={`${documents.length} medical report(s) attached to this consultation`}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <span>{documents.length} Report{documents.length > 1 ? 's' : ''}</span>
+              </div>
+            )}
+
+            <div className="chat-main__badge" title="Verified AI intake dialog active">
+              <span className="chat-main__badge-dot" aria-hidden="true" />
+              <span>Intake Protocol</span>
+            </div>
           </div>
         </header>
 
@@ -505,6 +632,14 @@ export default function PatientConsultation() {
           onToggleVoice={handleToggleVoice}
           voiceError={voiceError}
           interimTranscript={interimTranscript}
+          documents={documents}
+          isUploadingDocument={isUploadingDocument}
+          uploadingFileName={uploadingFileName}
+          onAttachDocument={handleAttachDocument}
+          onDeleteDocument={handleDeleteDocument}
+          isDeletingDocumentId={isDeletingDocumentId}
+          documentError={documentError}
+          onClearDocumentError={() => setDocumentError(null)}
         />
       </div>
     </div>

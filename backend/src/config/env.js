@@ -31,4 +31,11 @@ export const CONVERSATION_HISTORY_LIMIT = process.env.CONVERSATION_HISTORY_LIMIT
   ? parseInt(process.env.CONVERSATION_HISTORY_LIMIT, 10)
   : 20;
 
+// Document Upload Configuration
+export const MAX_DOCUMENT_FILE_SIZE_MB = process.env.MAX_DOCUMENT_FILE_SIZE_MB
+  ? parseInt(process.env.MAX_DOCUMENT_FILE_SIZE_MB, 10)
+  : 10;
+export const MAX_DOCUMENT_FILE_SIZE_BYTES = MAX_DOCUMENT_FILE_SIZE_MB * 1024 * 1024;
+export const DOCUMENT_UPLOAD_DIR = process.env.DOCUMENT_UPLOAD_DIR || 'uploads/documents';
+
 
