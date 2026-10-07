@@ -44,11 +44,36 @@ const documentSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ['uploaded', 'processing', 'failed', 'deleted'],
+        values: ['uploaded', 'processing', 'processed', 'failed', 'deleted'],
         message: '{VALUE} is not a valid document status',
       },
       default: 'uploaded',
       index: true,
+    },
+    extractedText: {
+      type: String,
+      default: null,
+    },
+    extractedLength: {
+      type: Number,
+      default: 0,
+    },
+    pageCount: {
+      type: Number,
+      default: 0,
+    },
+    processingStartedAt: {
+      type: Date,
+      default: null,
+    },
+    processingCompletedAt: {
+      type: Date,
+      default: null,
+    },
+    processingError: {
+      type: String,
+      default: null,
+      trim: true,
     },
   },
   {
@@ -56,12 +81,18 @@ const documentSchema = new mongoose.Schema(
   }
 );
 
+// Virtual uploadStatus for compatibility
+documentSchema.virtual('uploadStatus').get(function () {
+  return this.status;
+});
+
 // Compound indexes for efficient conversation and user document lookups
 documentSchema.index({ conversationId: 1, createdAt: -1 });
 documentSchema.index({ userId: 1, createdAt: -1 });
 
 // Clean JSON serialization — strictly excludes internal filesystem paths and keys
 documentSchema.set('toJSON', {
+  virtuals: true,
   transform: (_doc, ret) => {
     ret.id = ret._id.toString();
     ret.userId = ret.userId.toString();

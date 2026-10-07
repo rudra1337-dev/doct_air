@@ -18,7 +18,7 @@ export const validateConversationIdParam = [
 /**
  * Validation rules for documentId and conversationId URL parameters
  */
-export const validateDeleteDocumentParams = [
+export const validateDocumentIdParams = [
   param('conversationId')
     .trim()
     .notEmpty()
@@ -36,7 +36,11 @@ export const validateDeleteDocumentParams = [
   validate,
 ];
 
+// Alias for backward compatibility
+export const validateDeleteDocumentParams = validateDocumentIdParams;
+
 export default {
   validateConversationIdParam,
+  validateDocumentIdParams,
   validateDeleteDocumentParams,
 };

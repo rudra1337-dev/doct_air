@@ -2,11 +2,13 @@ import { Router } from 'express';
 import {
   uploadDocumentHandler,
   getConversationDocumentsHandler,
+  getDocumentHandler,
+  retryDocumentProcessingHandler,
   deleteDocumentHandler,
 } from './document.controller.js';
 import {
   validateConversationIdParam,
-  validateDeleteDocumentParams,
+  validateDocumentIdParams,
 } from './document.validator.js';
 import { uploadPdfMiddleware } from './document.upload.js';
 import { authenticateUser } from '../../middleware/authMiddleware.js';
@@ -23,6 +25,11 @@ router
 
 router
   .route('/:documentId')
-  .delete(validateDeleteDocumentParams, deleteDocumentHandler);
+  .get(validateDocumentIdParams, getDocumentHandler)
+  .delete(validateDocumentIdParams, deleteDocumentHandler);
+
+router
+  .route('/:documentId/retry')
+  .post(validateDocumentIdParams, retryDocumentProcessingHandler);
 
 export default router;

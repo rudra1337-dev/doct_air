@@ -34,3 +34,12 @@ export const updateDocumentStatus = async (id, status) => {
     { returnDocument: 'after' }
   );
 };
+
+export const updateDocument = async (id, updateData) => {
+  return Document.findByIdAndUpdate(
+    id,
+    updateData,
+    { returnDocument: 'after' }
+  );
+};
+

@@ -41,12 +41,13 @@ export default function PatientConsultation() {
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [lastFailedPrompt, setLastFailedPrompt] = useState('');
 
-  // Attached Medical Reports state (Step 3.1)
+  // Attached Medical Reports state (Step 3.1 & Step 3.2)
   const [documents, setDocuments] = useState([]);
   const [isUploadingDocument, setIsUploadingDocument] = useState(false);
   const [uploadingFileName, setUploadingFileName] = useState('');
   const [documentError, setDocumentError] = useState(null);
   const [isDeletingDocumentId, setIsDeletingDocumentId] = useState(null);
+  const [isRetryingDocumentId, setIsRetryingDocumentId] = useState(null);
 
   // Voice capabilities & Push-to-Talk Speech Recognition & Text-to-Speech
   const { speechRecognitionSupported, speechSynthesisSupported } = useVoiceCapabilities();
@@ -234,6 +235,31 @@ export default function PatientConsultation() {
       isCancelled = true;
     };
   }, [conversationId, activeSessionKey, stopSpeech, resetVoiceState]);
+
+  // Poll active document statuses if any document is currently queued or in-flight processing (Step 3.2)
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const hasIncompleteProcessing = documents.some((d) => {
+      const status = d.status || d.uploadStatus;
+      return status === 'uploaded' || status === 'processing';
+    });
+
+    if (!hasIncompleteProcessing) return;
+
+    const timer = setInterval(async () => {
+      try {
+        const res = await documentService.getDocuments(conversationId);
+        if (res?.success && Array.isArray(res.documents)) {
+          setDocuments(res.documents);
+        }
+      } catch (err) {
+        console.warn('Failed to refresh document processing status:', err.message);
+      }
+    }, 1500);
+
+    return () => clearInterval(timer);
+  }, [conversationId, documents]);
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -519,6 +545,44 @@ export default function PatientConsultation() {
     }
   };
 
+  // 10. Retry Failed Document Processing (Step 3.2)
+  const handleRetryDocument = async (docId) => {
+    if (!conversationId || !docId || isRetryingDocumentId) return;
+
+    setIsRetryingDocumentId(docId);
+    setDocumentError(null);
+
+    // Optimistically update document status to processing
+    setDocuments((prev) =>
+      prev.map((d) => (d.id === docId ? { ...d, status: 'processing', processingError: null } : d))
+    );
+
+    try {
+      const res = await documentService.retryProcessing(conversationId, docId);
+      if (res?.success && res.document) {
+        setDocuments((prev) =>
+          prev.map((d) => (d.id === docId ? res.document : d))
+        );
+      } else {
+        throw new Error(res?.message || 'Failed to retry report processing.');
+      }
+    } catch (err) {
+      console.error('Document processing retry error:', err);
+      setDocumentError(err.message || 'Retry failed. Please check the document or upload again.');
+      // Refresh documents to sync state
+      try {
+        const refreshRes = await documentService.getDocuments(conversationId);
+        if (refreshRes?.success && Array.isArray(refreshRes.documents)) {
+          setDocuments(refreshRes.documents);
+        }
+      } catch {
+        // ignore
+      }
+    } finally {
+      setIsRetryingDocumentId(null);
+    }
+  };
+
   // Derive header title
   const currentTitle =
     activeConv?.displayTitle ||
@@ -638,6 +702,8 @@ export default function PatientConsultation() {
           onAttachDocument={handleAttachDocument}
           onDeleteDocument={handleDeleteDocument}
           isDeletingDocumentId={isDeletingDocumentId}
+          onRetryDocument={handleRetryDocument}
+          isRetryingDocumentId={isRetryingDocumentId}
           documentError={documentError}
           onClearDocumentError={() => setDocumentError(null)}
         />

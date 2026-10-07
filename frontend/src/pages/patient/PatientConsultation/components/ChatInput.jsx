@@ -20,6 +20,8 @@ export default function ChatInput({
   onAttachDocument,
   onDeleteDocument,
   isDeletingDocumentId = null,
+  onRetryDocument,
+  isRetryingDocumentId = null,
   documentError = null,
   onClearDocumentError,
 }) {
@@ -116,6 +118,8 @@ export default function ChatInput({
         uploadingFileName={uploadingFileName}
         onDeleteDocument={onDeleteDocument}
         isDeletingId={isDeletingDocumentId}
+        onRetryDocument={onRetryDocument}
+        isRetryingId={isRetryingDocumentId}
       />
 
       <form

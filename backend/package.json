@@ -21,7 +21,8 @@
     "express-validator": "^7.3.2",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.10.3",
-    "multer": "^2.4.0"
+    "multer": "^2.4.0",
+    "unpdf": "^1.7.0"
   },
   "devDependencies": {
     "mongodb-memory-server": "^11.3.0",

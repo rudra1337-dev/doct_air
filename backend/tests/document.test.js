@@ -274,4 +274,200 @@ test('Document Module Test Suite', async (t) => {
     // Verify file deleted from disk
     assert.equal(fs.existsSync(createdDiskPath), false);
   });
+
+  const VALID_TEXT_PDF = `%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj
+4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+5 0 obj << /Length 44 >> stream
+BT
+/F1 24 Tf
+100 700 Td
+(Patient Blood Pressure: 120/80) Tj
+ET
+endstream endobj
+xref
+0 6
+0000000000 65535 f 
+0000000010 00000 n 
+0000000060 00000 n 
+0000000117 00000 n 
+0000000242 00000 n 
+0000000315 00000 n 
+trailer << /Size 6 /Root 1 0 R >>
+startxref
+408
+%%EOF`;
+
+  const TEXTLESS_PDF = `%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >> endobj
+xref
+0 4
+0000000000 65535 f 
+0000000010 00000 n 
+0000000060 00000 n 
+0000000117 00000 n 
+trailer << /Size 4 /Root 1 0 R >>
+startxref
+185
+%%EOF`;
+
+  let processedDocId = null;
+
+  await t.test('11. Uploading text-based PDF processes text and transitions to processed', async () => {
+    const formData = new FormData();
+    const pdfBlob = new Blob([VALID_TEXT_PDF], { type: 'application/pdf' });
+    formData.append('file', pdfBlob, 'Lab_Report.pdf');
+
+    const res = await fetch(`${baseUrl}/conversations/${convA.id}/documents`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${tokenA}`,
+      },
+      body: formData,
+    });
+
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    processedDocId = body.document.id;
+
+    // Wait briefly for asynchronous processor to complete text extraction
+    let docRecord = null;
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 50));
+      docRecord = await Document.findById(processedDocId);
+      if (docRecord && (docRecord.status === 'processed' || docRecord.status === 'failed')) {
+        break;
+      }
+    }
+
+    assert.ok(docRecord);
+    assert.equal(docRecord.status, 'processed');
+    assert.equal(docRecord.extractedText, 'Patient Blood Pressure: 120/80');
+    assert.equal(docRecord.pageCount, 1);
+    assert.equal(docRecord.extractedLength, 'Patient Blood Pressure: 120/80'.length);
+    assert.equal(docRecord.processingError, null);
+    assert.ok(docRecord.processingCompletedAt);
+  });
+
+  await t.test('12. Authorized owner retrieves processed document via GET endpoint', async () => {
+    const res = await fetch(`${baseUrl}/conversations/${convA.id}/documents/${processedDocId}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${tokenA}`,
+      },
+    });
+
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.ok(body.document);
+    assert.equal(body.document.id, processedDocId);
+    assert.equal(body.document.status, 'processed');
+    assert.equal(body.document.extractedText, 'Patient Blood Pressure: 120/80');
+    assert.equal(body.document.pageCount, 1);
+
+    // Security check: internal storage secrets are never exposed
+    assert.equal(body.document.storagePath, undefined);
+    assert.equal(body.document.storageKey, undefined);
+  });
+
+  await t.test('13. Unauthorized user cannot access document details (rejected with 404)', async () => {
+    const res = await fetch(`${baseUrl}/conversations/${convA.id}/documents/${processedDocId}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${tokenB}`,
+      },
+    });
+
+    assert.equal(res.status, 404);
+    const body = await res.json();
+    assert.equal(body.success, false);
+    assert.match(body.message, /conversation not found/i);
+  });
+
+  await t.test('14. Uploading textless PDF marks status as failed with descriptive explanation', async () => {
+    const formData = new FormData();
+    const pdfBlob = new Blob([TEXTLESS_PDF], { type: 'application/pdf' });
+    formData.append('file', pdfBlob, 'Scanned_Xray.pdf');
+
+    const res = await fetch(`${baseUrl}/conversations/${convA.id}/documents`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${tokenA}`,
+      },
+      body: formData,
+    });
+
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    const textlessDocId = body.document.id;
+
+    // Wait briefly for processor to run
+    let docRecord = null;
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 50));
+      docRecord = await Document.findById(textlessDocId);
+      if (docRecord && (docRecord.status === 'processed' || docRecord.status === 'failed')) {
+        break;
+      }
+    }
+
+    assert.ok(docRecord);
+    assert.equal(docRecord.status, 'failed');
+    assert.equal(docRecord.extractedText, null);
+    assert.match(docRecord.processingError, /scanned or image-only/i);
+
+    // Clean up
+    if (docRecord.storagePath && fs.existsSync(docRecord.storagePath)) {
+      await fs.promises.unlink(docRecord.storagePath);
+    }
+    await Document.findByIdAndDelete(textlessDocId);
+  });
+
+  await t.test('15. Retrying processing via POST /retry re-runs text extraction for owner', async () => {
+    const res = await fetch(
+      `${baseUrl}/conversations/${convA.id}/documents/${processedDocId}/retry`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${tokenA}`,
+        },
+      }
+    );
+
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.ok(body.document);
+    assert.equal(body.document.status, 'processed');
+    assert.equal(body.document.extractedText, 'Patient Blood Pressure: 120/80');
+  });
+
+  await t.test('16. Unauthorized retry request is rejected with 404', async () => {
+    const res = await fetch(
+      `${baseUrl}/conversations/${convA.id}/documents/${processedDocId}/retry`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${tokenB}`,
+        },
+      }
+    );
+
+    assert.equal(res.status, 404);
+    const body = await res.json();
+    assert.equal(body.success, false);
+  });
+
+  // Final cleanup for processedDocId
+  const finalDoc = await Document.findById(processedDocId);
+  if (finalDoc?.storagePath && fs.existsSync(finalDoc.storagePath)) {
+    await fs.promises.unlink(finalDoc.storagePath);
+  }
+  await Document.findByIdAndDelete(processedDocId);
 });

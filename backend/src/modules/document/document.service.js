@@ -1,21 +1,107 @@
 import fs from 'fs';
 import * as documentRepo from './document.repository.js';
 import * as conversationRepo from '../conversation/conversation.repository.js';
+import * as documentProcessor from './document.processor.js';
 
 /**
- * Service layer for Document management and security boundaries
+ * Service layer for Document management, security boundaries, and processing lifecycle.
  */
 
 /**
- * Upload and associate a PDF document with a conversation
+ * Process a stored PDF document to extract text and update status/metadata.
+ *
+ * @param {string} documentId
+ * @returns {Promise<Object>} Updated document
+ */
+export const processDocument = async (documentId) => {
+  const document = await documentRepo.findDocumentById(documentId);
+  if (!document || document.status === 'deleted') {
+    return null;
+  }
+
+  const startTime = Date.now();
+
+  // Mark document as in-flight processing
+  await documentRepo.updateDocument(documentId, {
+    status: 'processing',
+    processingStartedAt: new Date(),
+    processingError: null,
+  });
+
+  try {
+    const extractionResult = await documentProcessor.extractTextFromFile(document.storagePath);
+    const durationMs = Date.now() - startTime;
+
+    if (extractionResult.success) {
+      const updated = await documentRepo.updateDocument(documentId, {
+        status: 'processed',
+        extractedText: extractionResult.text,
+        extractedLength: extractionResult.characterCount,
+        pageCount: extractionResult.totalPages,
+        processingError: null,
+        processingCompletedAt: new Date(),
+      });
+
+      // Safe metadata-only logging (never log medical report text)
+      console.log(
+        `[DocumentService] Document processed successfully: id=${documentId} pages=${extractionResult.totalPages} chars=${extractionResult.characterCount} duration=${durationMs}ms`
+      );
+
+      return updated;
+    }
+
+    // Extraction could not find extractable text or parsed with limitation
+    const updated = await documentRepo.updateDocument(documentId, {
+      status: 'failed',
+      extractedText: null,
+      extractedLength: 0,
+      pageCount: extractionResult.totalPages || 0,
+      processingError: extractionResult.message || 'Text extraction failed',
+      processingCompletedAt: new Date(),
+    });
+
+    console.warn(
+      `[DocumentService] Document extraction failed: id=${documentId} reason=${extractionResult.reason} duration=${durationMs}ms`
+    );
+
+    return updated;
+  } catch (err) {
+    const durationMs = Date.now() - startTime;
+    const safeErrorMessage =
+      err.message?.includes('ENOENT')
+        ? 'Document file not found on server.'
+        : 'An error occurred while processing the document.';
+
+    const updated = await documentRepo.updateDocument(documentId, {
+      status: 'failed',
+      extractedText: null,
+      extractedLength: 0,
+      pageCount: 0,
+      processingError: safeErrorMessage,
+      processingCompletedAt: new Date(),
+    });
+
+    console.error(
+      `[DocumentService] Document processing exception: id=${documentId} duration=${durationMs}ms:`,
+      err.message
+    );
+
+    return updated;
+  }
+};
+
+/**
+ * Upload and associate a PDF document with a conversation, then trigger text processing.
  *
  * @param {Object} params
  * @param {string} params.conversationId
  * @param {string} params.userId
  * @param {Object} params.file - Multer file object
+ * @param {Object} [params.options]
+ * @param {boolean} [params.options.awaitProcessing=false] - Whether to await processing before returning
  * @returns {Promise<Object>} Created document metadata
  */
-export const uploadDocument = async ({ conversationId, userId, file }) => {
+export const uploadDocument = async ({ conversationId, userId, file, options = {} }) => {
   // Ensure conversation exists and strictly belongs to the authenticated user
   const conversation = await conversationRepo.findConversationById(conversationId);
 
@@ -43,6 +129,22 @@ export const uploadDocument = async ({ conversationId, userId, file }) => {
       storageKey: file.filename,
       storagePath: file.path,
       status: 'uploaded',
+    });
+
+    // If caller explicitly requested waiting for processing (e.g. specialized sync workflows)
+    if (options.awaitProcessing) {
+      const processed = await processDocument(document._id);
+      return processed || document;
+    }
+
+    // Otherwise initiate text extraction asynchronously without blocking HTTP upload response
+    setImmediate(() => {
+      processDocument(document._id).catch((err) => {
+        console.error(
+          `[DocumentService] Async processing error for documentId=${document._id}:`,
+          err.message
+        );
+      });
     });
 
     return document;
@@ -78,6 +180,56 @@ export const getConversationDocuments = async ({ conversationId, userId }) => {
   }
 
   return documentRepo.findDocumentsByConversationId(conversationId);
+};
+
+/**
+ * Get a specific document by ID with authorization check
+ *
+ * @param {Object} params
+ * @param {string} params.conversationId
+ * @param {string} params.documentId
+ * @param {string} params.userId
+ * @returns {Promise<Object>} Document record
+ */
+export const getDocumentById = async ({ conversationId, documentId, userId }) => {
+  // Verify conversation ownership
+  const conversation = await conversationRepo.findConversationById(conversationId);
+
+  if (!conversation || conversation.userId.toString() !== userId.toString()) {
+    const error = new Error('Conversation not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const document = await documentRepo.findDocumentByIdAndConversationId(
+    documentId,
+    conversationId
+  );
+
+  if (!document || document.userId.toString() !== userId.toString() || document.status === 'deleted') {
+    const error = new Error('Document not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return document;
+};
+
+/**
+ * Retry processing for a document
+ *
+ * @param {Object} params
+ * @param {string} params.conversationId
+ * @param {string} params.documentId
+ * @param {string} params.userId
+ * @returns {Promise<Object>} Updated document record
+ */
+export const retryDocumentProcessing = async ({ conversationId, documentId, userId }) => {
+  // Authorize user and verify document belongs to conversation
+  const document = await getDocumentById({ conversationId, documentId, userId });
+
+  // Re-run extraction process
+  return await processDocument(document._id);
 };
 
 /**
@@ -124,4 +276,13 @@ export const deleteDocument = async ({ conversationId, documentId, userId }) => 
   await documentRepo.deleteDocumentById(documentId);
 
   return { success: true, message: 'Document deleted successfully' };
+};
+
+export default {
+  processDocument,
+  uploadDocument,
+  getConversationDocuments,
+  getDocumentById,
+  retryDocumentProcessing,
+  deleteDocument,
 };

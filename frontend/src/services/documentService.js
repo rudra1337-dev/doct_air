@@ -1,7 +1,7 @@
 import { apiGet, apiDelete, apiClient } from './api';
 
 /**
- * Service for conversation PDF medical report document management
+ * Service for conversation PDF medical report document management and processing
  */
 export const documentService = {
   /**
@@ -33,6 +33,26 @@ export const documentService = {
    */
   getDocuments: (conversationId) =>
     apiGet(`/conversations/${conversationId}/documents`),
+
+  /**
+   * Fetch a single document by ID including processing status
+   *
+   * @param {string} conversationId
+   * @param {string} documentId
+   * @returns {Promise<{ success: boolean, document: Object }>}
+   */
+  getDocument: (conversationId, documentId) =>
+    apiGet(`/conversations/${conversationId}/documents/${documentId}`),
+
+  /**
+   * Retry processing for a document whose text extraction failed
+   *
+   * @param {string} conversationId
+   * @param {string} documentId
+   * @returns {Promise<{ success: boolean, document: Object }>}
+   */
+  retryProcessing: (conversationId, documentId) =>
+    apiClient.post(`/conversations/${conversationId}/documents/${documentId}/retry`),
 
   /**
    * Delete a document from a conversation
