@@ -10,6 +10,9 @@ import {
   deriveConversationTitle,
   sortConversationsByRecent,
 } from './utils/conversationUtils';
+import useVoiceCapabilities from '../../../hooks/useVoiceCapabilities';
+import useSpeechRecognition from '../../../hooks/useSpeechRecognition';
+import useSpeechSynthesis from '../../../hooks/useSpeechSynthesis';
 import './PatientConsultation.css';
 
 export default function PatientConsultation() {
@@ -36,6 +39,41 @@ export default function PatientConsultation() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [lastFailedPrompt, setLastFailedPrompt] = useState('');
+
+  // Voice capabilities & Push-to-Talk Speech Recognition & Text-to-Speech
+  const { speechRecognitionSupported, speechSynthesisSupported } = useVoiceCapabilities();
+  const {
+    voiceState,
+    voiceError,
+    interimTranscript,
+    toggleVoice,
+    resetVoiceState,
+  } = useSpeechRecognition({
+    currentText: input,
+    onTranscript: setInput,
+  });
+
+  const {
+    activeMessageId,
+    toggleSpeak,
+    stop: stopSpeech,
+  } = useSpeechSynthesis();
+
+  // Coordinate STT and TTS mutual exclusion:
+  // Starting microphone cancels any active speech output
+  const handleToggleVoice = useCallback(() => {
+    stopSpeech();
+    toggleVoice();
+  }, [stopSpeech, toggleVoice]);
+
+  // Starting speech output cancels any active voice recognition
+  const handleToggleSpeak = useCallback(
+    (messageId, content) => {
+      resetVoiceState();
+      toggleSpeak(messageId, content);
+    },
+    [resetVoiceState, toggleSpeak]
+  );
 
   // Refs for race-condition prevention and stream abortion
   const isSubmittingRef = useRef(false);
@@ -95,6 +133,10 @@ export default function PatientConsultation() {
 
   // 4. Fetch messages whenever active conversationId changes (supports browser refresh & deep links)
   useEffect(() => {
+    // Stop any active speech synthesis and voice recognition when navigating or changing conversations
+    stopSpeech();
+    resetVoiceState();
+
     // If no conversationId is in the URL, clear messages and errors
     if (!conversationId) {
       setMessages([]);
@@ -165,7 +207,7 @@ export default function PatientConsultation() {
     return () => {
       isCancelled = true;
     };
-  }, [conversationId, activeSessionKey]);
+  }, [conversationId, activeSessionKey, stopSpeech, resetVoiceState]);
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -189,6 +231,8 @@ export default function PatientConsultation() {
       sessionStorage.removeItem(activeSessionKey);
     }
 
+    stopSpeech();
+    resetVoiceState();
     setMessages([]);
     setMessagesError(null);
     setInput('');
@@ -203,6 +247,8 @@ export default function PatientConsultation() {
         streamAbortControllerRef.current = null;
         setIsStreaming(false);
       }
+      stopSpeech();
+      resetVoiceState();
       navigate(`/patient/consultation/${id}`);
     }
   };
@@ -211,6 +257,10 @@ export default function PatientConsultation() {
   const handleSend = async (customPrompt) => {
     const promptText = (customPrompt || input).trim();
     if (!promptText || isStreaming || isSubmittingRef.current) return;
+
+    // Stop active speech playback and voice recognition if user sends new prompt
+    stopSpeech();
+    resetVoiceState();
 
     isSubmittingRef.current = true;
     setInput('');
@@ -437,6 +487,9 @@ export default function PatientConsultation() {
               }
             }}
             onNewChat={handleNewChat}
+            speechSynthesisSupported={speechSynthesisSupported}
+            activeSpeakingId={activeMessageId}
+            onToggleSpeak={handleToggleSpeak}
           />
         )}
 
@@ -444,9 +497,14 @@ export default function PatientConsultation() {
         <ChatInput
           value={input}
           onChange={setInput}
-          onSend={() => handleSend(input)}
+          onSend={(text) => handleSend(text || input)}
           disabled={isLoadingMessages || Boolean(messagesError)}
           isStreaming={isStreaming}
+          speechRecognitionSupported={speechRecognitionSupported}
+          voiceState={voiceState}
+          onToggleVoice={handleToggleVoice}
+          voiceError={voiceError}
+          interimTranscript={interimTranscript}
         />
       </div>
     </div>

@@ -8,6 +8,9 @@ export default function ChatMessageList({
   onRetry,
   onRetryLoading,
   onNewChat,
+  speechSynthesisSupported = false,
+  activeSpeakingId = null,
+  onToggleSpeak,
 }) {
   const bottomRef = useRef(null);
 
@@ -102,9 +105,12 @@ export default function ChatMessageList({
           const isFailed = msg.status === 'failed';
           const isSending = msg.status === 'sending';
 
+          const messageId = msg.id || `msg-${index}`;
+          const isSpeakingThis = activeSpeakingId === messageId;
+
           return (
             <div
-              key={msg.id || `msg-${index}`}
+              key={messageId}
               className={`chat-bubble-row ${isUser ? 'chat-bubble-row--user' : 'chat-bubble-row--assistant'}`}
             >
               {/* Avatar */}
@@ -177,6 +183,62 @@ export default function ChatMessageList({
                     </div>
                   )}
                 </div>
+
+                {/* Assistant Message Actions: Speak Aloud (TTS) */}
+                {!isUser && !isCurrentlyStreaming && !isFailed && !isSending && Boolean(msg.content) && speechSynthesisSupported && (
+                  <div className="chat-bubble-actions">
+                    <button
+                      type="button"
+                      className={`chat-speaker-btn ${isSpeakingThis ? 'chat-speaker-btn--speaking' : ''}`}
+                      onClick={() => onToggleSpeak && onToggleSpeak(messageId, msg.content)}
+                      aria-label={isSpeakingThis ? 'Stop reading assistant response' : 'Read assistant response aloud'}
+                      aria-pressed={isSpeakingThis}
+                      title={isSpeakingThis ? 'Stop reading assistant response' : 'Read assistant response aloud'}
+                    >
+                      {isSpeakingThis ? (
+                        <>
+                          <span className="chat-speaker-bars" aria-hidden="true">
+                            <span className="speaker-bar bar-1" />
+                            <span className="speaker-bar bar-2" />
+                            <span className="speaker-bar bar-3" />
+                          </span>
+                          <svg
+                            className="chat-speaker-icon"
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            stroke="none"
+                            aria-hidden="true"
+                          >
+                            <rect x="5" y="5" width="14" height="14" rx="2" />
+                          </svg>
+                          <span className="chat-speaker-label">Stop</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg
+                            className="chat-speaker-icon"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                          </svg>
+                          <span className="chat-speaker-label">Read aloud</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           );
