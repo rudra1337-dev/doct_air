@@ -1,6 +1,11 @@
+import mongoose from 'mongoose';
 import * as conversationRepo from './conversation.repository.js';
 import { geminiService } from '../ai/index.js';
+import * as documentService from '../document/document.service.js';
+import * as attachmentService from '../attachment/attachment.service.js';
+import { buildDocumentContext } from './documentContext.builder.js';
 import { CONVERSATION_HISTORY_LIMIT } from '../../config/env.js';
+
 
 /**
  * Service layer for conversation business logic and security boundaries
@@ -33,7 +38,11 @@ export const getConversationMessages = async (conversationId, userId) => {
   return conversationRepo.findMessagesByConversationId(conversationId);
 };
 
-export const addUserMessage = async (conversationId, userId, { content, inputMode = 'text' }) => {
+export const addUserMessage = async (
+  conversationId,
+  userId,
+  { content, inputMode = 'text', attachmentIds } = {}
+) => {
   // Verify ownership before persisting message
   const conversation = await conversationRepo.findConversationById(conversationId);
 
@@ -43,11 +52,32 @@ export const addUserMessage = async (conversationId, userId, { content, inputMod
     throw error;
   }
 
+  const messageId = new mongoose.Types.ObjectId();
+  let messageAttachments = [];
+
+  // Finalize and commit attachments if provided
+  if (Array.isArray(attachmentIds) && attachmentIds.length > 0) {
+    const committedDocs = await attachmentService.finalizeAndCommitAttachments({
+      attachmentIds,
+      userId,
+      conversationId,
+      messageId,
+    });
+
+    messageAttachments = committedDocs.map((doc) => ({
+      documentId: doc._id,
+      originalName: doc.originalName,
+      fileSize: doc.fileSize,
+    }));
+  }
+
   // Create message with strictly server-enforced role and status
   const message = await conversationRepo.createMessage({
+    _id: messageId,
     conversationId,
     role: 'user',
-    content: content.trim(),
+    content: (content || '').trim(),
+    attachments: messageAttachments,
     inputMode,
     status: 'completed',
   });
@@ -79,7 +109,10 @@ export const buildConversationContext = async (
 
   return recentMessages.map((msg) => ({
     role: msg.role,
-    content: msg.content,
+    content:
+      msg.content && msg.content.trim().length > 0
+        ? msg.content
+        : 'Please review and summarize the attached medical report(s).',
   }));
 };
 
@@ -92,6 +125,8 @@ export const buildConversationContext = async (
  * @param {string} params.userId
  * @param {string} params.content
  * @param {string} [params.inputMode='text']
+ * @param {Array<string>} [params.documentIds]
+ * @param {Array<string>} [params.attachmentIds]
  * @param {Function} [params.onMessageStart]
  * @param {Function} [params.onMessageDelta]
  * @param {Function} [params.onMessageComplete]
@@ -105,6 +140,8 @@ export const streamUserMessageWithAI = async ({
   userId,
   content,
   inputMode = 'text',
+  documentIds,
+  attachmentIds,
   onMessageStart,
   onMessageDelta,
   onMessageComplete,
@@ -121,11 +158,34 @@ export const streamUserMessageWithAI = async ({
     throw error;
   }
 
-  // 2. Persist the user message first
+  const messageId = new mongoose.Types.ObjectId();
+  let messageAttachments = [];
+  let committedDocIds = [];
+
+  // Finalize and commit attachments if provided
+  if (Array.isArray(attachmentIds) && attachmentIds.length > 0) {
+    const committedDocs = await attachmentService.finalizeAndCommitAttachments({
+      attachmentIds,
+      userId,
+      conversationId,
+      messageId,
+    });
+
+    messageAttachments = committedDocs.map((doc) => ({
+      documentId: doc._id,
+      originalName: doc.originalName,
+      fileSize: doc.fileSize,
+    }));
+    committedDocIds = committedDocs.map((d) => d._id.toString());
+  }
+
+  // 2. Persist the user message with committed attachments
   const userMessage = await conversationRepo.createMessage({
+    _id: messageId,
     conversationId,
     role: 'user',
-    content: content.trim(),
+    content: (content || '').trim(),
+    attachments: messageAttachments,
     inputMode,
     status: 'completed',
   });
@@ -148,12 +208,44 @@ export const streamUserMessageWithAI = async ({
   // 4. Build the AI context from recent completed messages (including the newly added user message)
   const aiContext = await buildConversationContext(conversationId);
 
+  // 4b. Load authorized processed documents and build delimited document context if available
+  let documentContext = null;
+  try {
+    const effectiveDocIds = Array.isArray(documentIds)
+      ? documentIds
+      : committedDocIds.length > 0
+        ? committedDocIds
+        : undefined;
+
+    const processedDocuments = await documentService.getProcessedDocumentsForConversation({
+      conversationId,
+      userId,
+      documentIds: effectiveDocIds,
+    });
+
+    if (processedDocuments && processedDocuments.length > 0) {
+      documentContext = buildDocumentContext(processedDocuments);
+      if (documentContext) {
+        console.log(
+          `[ConversationService] Injected document context for conv=${conversationId}: ${processedDocuments.length} doc(s), ${documentContext.length} chars`
+        );
+      }
+    }
+  } catch (docErr) {
+    // Graceful degradation: If document context retrieval fails, continue with normal conversation
+    console.warn(
+      `[ConversationService] Document context retrieval warning for conv=${conversationId}:`,
+      docErr.message
+    );
+  }
+
   // 5. Pass context to isolated Gemini service and stream response
   let fullAssistantText = '';
 
   try {
     const stream = geminiService.generateStream({
       messages: aiContext,
+      documentContext,
       client,
       apiKey,
     });

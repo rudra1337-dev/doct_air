@@ -8,6 +8,7 @@ export const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/a
 export const apiClient = axios.create({
   baseURL: BASE_URL,
   withCredentials: true, // Send and receive cross-origin httpOnly session cookies
+  timeout: 15000, // 15s default request timeout prevents UI from hanging indefinitely on stalled requests
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',

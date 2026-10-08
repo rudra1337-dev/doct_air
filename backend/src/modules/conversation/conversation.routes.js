@@ -12,11 +12,15 @@ import {
   validateCreateMessage,
 } from './conversation.validator.js';
 import { authenticateUser } from '../../middleware/authMiddleware.js';
+import documentRoutes from '../document/document.routes.js';
 
 const router = Router();
 
 // All conversation routes require authentication
 router.use(authenticateUser);
+
+// Mount document sub-resource router
+router.use('/:conversationId/documents', documentRoutes);
 
 router
   .route('/')
@@ -31,6 +35,5 @@ router
 router
   .route('/:conversationId/messages/stream')
   .post(validateCreateMessage, streamMessageHandler);
-
 
 export default router;

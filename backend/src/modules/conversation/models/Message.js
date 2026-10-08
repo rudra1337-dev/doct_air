@@ -18,15 +18,40 @@ const messageSchema = new mongoose.Schema(
     },
     content: {
       type: String,
-      required: [true, 'Message content is required'],
+      default: '',
       trim: true,
-      minlength: [1, 'Message content cannot be empty'],
       maxlength: [10000, 'Message content cannot exceed 10000 characters'],
+      validate: {
+        validator: function (v) {
+          const hasContent = typeof v === 'string' && v.trim().length > 0;
+          const hasAttachments = Array.isArray(this.attachments) && this.attachments.length > 0;
+          return hasContent || hasAttachments;
+        },
+        message: 'Message must contain text content or at least one attachment',
+      },
     },
+    attachments: [
+      {
+        documentId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Document',
+          required: true,
+        },
+        originalName: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        fileSize: {
+          type: Number,
+          default: 0,
+        },
+      },
+    ],
     inputMode: {
       type: String,
       enum: {
-        values: ['text'],
+        values: ['text', 'voice'],
         message: '{VALUE} is not a supported input mode',
       },
       default: 'text',

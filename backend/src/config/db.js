@@ -1,5 +1,13 @@
+import dns from 'dns';
 import mongoose from 'mongoose';
 import { MONGO_URI, NODE_ENV } from './env.js';
+
+// Prioritize IPv4 resolution to prevent ENETUNREACH errors on MongoDB Atlas SRV / dual-stack clusters
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // Ignore if not supported in runtime
+}
 
 let memoryServerInstance = null;
 
@@ -8,12 +16,18 @@ const connectDB = async () => {
   if (MONGO_URI) {
     try {
       const conn = await mongoose.connect(MONGO_URI, {
-        serverSelectionTimeoutMS: 3000, // 3s fast-fail if local daemon is inactive
+        serverSelectionTimeoutMS: 5000, // 5s fast-fail if local daemon or remote cluster is inactive
       });
       console.log(`[MongoDB] Connected to database: ${conn.connection.host}`);
       return conn;
     } catch (err) {
       console.warn(`[MongoDB] Connection to ${MONGO_URI} failed (${err.message}).`);
+      // Cleanly teardown failed connection before in-memory fallback
+      try {
+        await mongoose.disconnect();
+      } catch {
+        // ignore
+      }
     }
   }
 

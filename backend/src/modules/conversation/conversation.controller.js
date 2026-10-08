@@ -59,7 +59,8 @@ export const getConversationMessagesHandler = asyncHandler(async (req, res) => {
 export const streamMessageHandler = asyncHandler(async (req, res) => {
   const userId = req.user._id || req.user.id;
   const { conversationId } = req.params;
-  const { content, inputMode } = req.body;
+  const { content, inputMode, documentIds } = req.body;
+  const attachmentIds = req.body?.attachments || req.body?.attachmentIds;
 
   let sseStarted = false;
 
@@ -73,6 +74,8 @@ export const streamMessageHandler = asyncHandler(async (req, res) => {
       userId,
       content,
       inputMode,
+      documentIds,
+      attachmentIds,
       onMessageStart: (data) => {
         if (!sseStarted) {
           res.setHeader('Content-Type', 'text/event-stream');
@@ -139,10 +142,12 @@ export const addMessageHandler = asyncHandler(async (req, res, next) => {
   const userId = req.user._id || req.user.id;
   const { conversationId } = req.params;
   const { content, inputMode } = req.body;
+  const attachmentIds = req.body?.attachments || req.body?.attachmentIds;
 
   const message = await conversationService.addUserMessage(conversationId, userId, {
     content,
     inputMode,
+    attachmentIds,
   });
 
   res.status(201).json({

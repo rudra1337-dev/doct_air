@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import conversationService from '../../../services/conversationService';
+import documentService from '../../../services/documentService';
 import ConversationSidebar from './components/ConversationSidebar';
 import ChatMessageList from './components/ChatMessageList';
 import ChatInput from './components/ChatInput';
@@ -13,6 +14,7 @@ import {
 import useVoiceCapabilities from '../../../hooks/useVoiceCapabilities';
 import useSpeechRecognition from '../../../hooks/useSpeechRecognition';
 import useSpeechSynthesis from '../../../hooks/useSpeechSynthesis';
+import useDraftAttachments from './hooks/useDraftAttachments';
 import './PatientConsultation.css';
 
 export default function PatientConsultation() {
@@ -39,6 +41,25 @@ export default function PatientConsultation() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [lastFailedPrompt, setLastFailedPrompt] = useState('');
+
+  // Attached Medical Reports state (persisted)
+  const [documents, setDocuments] = useState([]);
+  const [documentError, setDocumentError] = useState(null);
+
+  // ChatGPT-style Draft Attachments hook
+  const {
+    drafts,
+    addDrafts,
+    removeDraft,
+    retryDraft,
+    clearDrafts,
+    hasUploading: hasUploadingDrafts,
+    hasFailed: hasFailedDrafts,
+    readyAttachmentIds,
+  } = useDraftAttachments({
+    conversationId,
+    onError: (err) => setDocumentError(err),
+  });
 
   // Voice capabilities & Push-to-Talk Speech Recognition & Text-to-Speech
   const { speechRecognitionSupported, speechSynthesisSupported } = useVoiceCapabilities();
@@ -75,10 +96,15 @@ export default function PatientConsultation() {
     [resetVoiceState, toggleSpeak]
   );
 
-  // Refs for race-condition prevention and stream abortion
+  // Refs for race-condition prevention, deletion tracking, and stream abortion
   const isSubmittingRef = useRef(false);
   const streamAbortControllerRef = useRef(null);
   const isNewConversationInitiatedRef = useRef(null);
+  const deletingIdsRef = useRef(new Set());
+  const activeConversationIdRef = useRef(conversationId);
+  useEffect(() => {
+    activeConversationIdRef.current = conversationId;
+  }, [conversationId]);
 
   // Active conversation object from list
   const activeConv = conversations.find((c) => c.id === conversationId);
@@ -141,6 +167,8 @@ export default function PatientConsultation() {
     if (!conversationId) {
       setMessages([]);
       setMessagesError(null);
+      setDocuments([]);
+      setDocumentError(null);
       setIsLoadingMessages(false);
       return;
     }
@@ -161,6 +189,7 @@ export default function PatientConsultation() {
 
     let isCancelled = false;
 
+    // Load messages for active conversation
     const loadMessages = async () => {
       try {
         setIsLoadingMessages(true);
@@ -202,12 +231,70 @@ export default function PatientConsultation() {
       }
     };
 
+    // Load attached documents for active conversation (Step 3.1)
+    const loadDocuments = async () => {
+      try {
+        const docRes = await documentService.getDocuments(conversationId);
+        if (!isCancelled && docRes?.success && Array.isArray(docRes.documents)) {
+          setDocuments((prev) => {
+            const filteredServerDocs = docRes.documents.filter(
+              (d) => !deletingIdsRef.current.has(d.id)
+            );
+            const serverDocIds = new Set(filteredServerDocs.map((d) => d.id));
+            const pendingPrevDocs = prev.filter(
+              (d) => !serverDocIds.has(d.id) && !deletingIdsRef.current.has(d.id)
+            );
+            return [...filteredServerDocs, ...pendingPrevDocs];
+          });
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          console.warn('Failed to load consultation documents:', err.message);
+        }
+      }
+    };
+
     loadMessages();
+    loadDocuments();
 
     return () => {
       isCancelled = true;
     };
   }, [conversationId, activeSessionKey, stopSpeech, resetVoiceState]);
+
+  // Poll active document statuses if any document is currently queued or in-flight processing (Step 3.2)
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const hasIncompleteProcessing = documents.some((d) => {
+      const status = d.status || d.uploadStatus;
+      return status === 'uploaded' || status === 'processing';
+    });
+
+    if (!hasIncompleteProcessing) return;
+
+    const timer = setInterval(async () => {
+      try {
+        const res = await documentService.getDocuments(conversationId);
+        if (res?.success && Array.isArray(res.documents)) {
+          setDocuments((prev) => {
+            const filteredServerDocs = res.documents.filter(
+              (d) => !deletingIdsRef.current.has(d.id)
+            );
+            const serverDocIds = new Set(filteredServerDocs.map((d) => d.id));
+            const pendingPrevDocs = prev.filter(
+              (d) => !serverDocIds.has(d.id) && !deletingIdsRef.current.has(d.id)
+            );
+            return [...filteredServerDocs, ...pendingPrevDocs];
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to refresh document processing status:', err.message);
+      }
+    }, 1500);
+
+    return () => clearInterval(timer);
+  }, [conversationId, documents]);
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -227,6 +314,9 @@ export default function PatientConsultation() {
       setIsStreaming(false);
     }
 
+    // Abort in-flight draft uploads and clear draft state
+    clearDrafts();
+
     if (activeSessionKey) {
       sessionStorage.removeItem(activeSessionKey);
     }
@@ -235,6 +325,9 @@ export default function PatientConsultation() {
     resetVoiceState();
     setMessages([]);
     setMessagesError(null);
+    setDocuments([]);
+    setDocumentError(null);
+    clearDrafts();
     setInput('');
     navigate('/patient/consultation', { state: { explicitNew: true } });
   };
@@ -247,6 +340,11 @@ export default function PatientConsultation() {
         streamAbortControllerRef.current = null;
         setIsStreaming(false);
       }
+
+      // Abort in-flight draft uploads and clear draft state before switching
+      clearDrafts();
+      setDocumentError(null);
+
       stopSpeech();
       resetVoiceState();
       navigate(`/patient/consultation/${id}`);
@@ -255,10 +353,21 @@ export default function PatientConsultation() {
 
   // 6. Send Message & Progressive SSE Streaming Orchestration
   const handleSend = async (customPrompt) => {
-    const promptText = (customPrompt || input).trim();
-    if (!promptText || isStreaming || isSubmittingRef.current) return;
+    const promptText = (customPrompt !== undefined ? customPrompt : input).trim();
+    const attachmentsToSend = [...readyAttachmentIds];
 
-    // Stop active speech playback and voice recognition if user sends new prompt
+    // Enforce send gating: must have text OR at least one ready attachment; no pending uploads or failures
+    if (
+      (!promptText && attachmentsToSend.length === 0) ||
+      isStreaming ||
+      isSubmittingRef.current ||
+      hasUploadingDrafts ||
+      hasFailedDrafts
+    ) {
+      return;
+    }
+
+    // Stop active speech playback and voice recognition when user sends message
     stopSpeech();
     resetVoiceState();
 
@@ -268,11 +377,13 @@ export default function PatientConsultation() {
 
     let targetConvId = conversationId;
 
-    // If starting from clean state (no active conversationId), create one first
+    // If starting from clean state (no active conversationId), initialize one first
     if (!targetConvId) {
       try {
-        const titleSnippet =
-          promptText.length > 40 ? `${promptText.slice(0, 40)}...` : promptText;
+        const titleSnippet = promptText
+          ? (promptText.length > 40 ? `${promptText.slice(0, 40)}...` : promptText)
+          : drafts[0]?.fileName?.replace(/\.pdf$/i, '').slice(0, 40) || 'Medical Report Consultation';
+
         const createRes = await conversationService.createConversation(titleSnippet);
 
         if (createRes?.success && createRes.conversation?.id) {
@@ -282,6 +393,7 @@ export default function PatientConsultation() {
           };
           targetConvId = newConv.id;
           isNewConversationInitiatedRef.current = newConv.id;
+          activeConversationIdRef.current = newConv.id;
 
           // Prepend and sort conversations list
           setConversations((prev) => sortConversationsByRecent([newConv, ...prev]));
@@ -301,6 +413,18 @@ export default function PatientConsultation() {
       }
     }
 
+    // Snapshot ready drafts being committed for optimistic bubble display
+    const optimisticAttachments = drafts
+      .filter((d) => d.status === 'ready' && attachmentsToSend.includes(d.attachmentId))
+      .map((d) => ({
+        documentId: d.attachmentId,
+        originalName: d.fileName,
+        fileSize: d.fileSize,
+      }));
+
+    // Clear draft attachments from composer immediately upon sending (committed)
+    clearDrafts();
+
     // Set up optimistic message entries
     const tempUserId = `temp-user-${Date.now()}`;
     const tempAssistantId = `temp-assistant-${Date.now()}`;
@@ -309,6 +433,7 @@ export default function PatientConsultation() {
       id: tempUserId,
       role: 'user',
       content: promptText,
+      attachments: optimisticAttachments,
       status: 'sending',
       createdAt: new Date().toISOString(),
     };
@@ -330,6 +455,7 @@ export default function PatientConsultation() {
 
     try {
       await conversationService.streamMessage(targetConvId, promptText, {
+        attachments: attachmentsToSend,
         signal: controller.signal,
         onStart: (data) => {
           if (data?.userMessage) {
@@ -368,12 +494,19 @@ export default function PatientConsultation() {
                       lastMessageAt: data.message.createdAt || new Date().toISOString(),
                       displayTitle:
                         c.displayTitle ||
-                        deriveConversationTitle(c, promptText),
+                        deriveConversationTitle(c, promptText || 'Medical Report Consultation'),
                     }
                   : c
               );
               return sortConversationsByRecent(updated);
             });
+
+            // Refresh persisted documents for header counter badge
+            documentService.getDocuments(targetConvId).then((res) => {
+              if (res?.success && Array.isArray(res.documents)) {
+                setDocuments(res.documents);
+              }
+            }).catch(() => {});
           }
         },
         onError: (_data) => {
@@ -462,9 +595,25 @@ export default function PatientConsultation() {
             </h1>
           </div>
 
-          <div className="chat-main__badge" title="Verified AI intake dialog active">
-            <span className="chat-main__badge-dot" aria-hidden="true" />
-            <span>Intake Protocol</span>
+          <div className="chat-main__header-right">
+            {/* Attached reports badge */}
+            {documents.length > 0 && (
+              <div
+                className="chat-main__docs-badge"
+                title={`${documents.length} medical report(s) attached to this consultation`}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <span>{documents.length} Report{documents.length > 1 ? 's' : ''}</span>
+              </div>
+            )}
+
+            <div className="chat-main__badge" title="Verified AI intake dialog active">
+              <span className="chat-main__badge-dot" aria-hidden="true" />
+              <span>Intake Protocol</span>
+            </div>
           </div>
         </header>
 
@@ -497,7 +646,7 @@ export default function PatientConsultation() {
         <ChatInput
           value={input}
           onChange={setInput}
-          onSend={(text) => handleSend(text || input)}
+          onSend={(text) => handleSend(text !== undefined ? text : input)}
           disabled={isLoadingMessages || Boolean(messagesError)}
           isStreaming={isStreaming}
           speechRecognitionSupported={speechRecognitionSupported}
@@ -505,6 +654,13 @@ export default function PatientConsultation() {
           onToggleVoice={handleToggleVoice}
           voiceError={voiceError}
           interimTranscript={interimTranscript}
+          draftAttachments={drafts}
+          onAttachFiles={(files) => addDrafts(files, conversationId)}
+          onRemoveDraft={removeDraft}
+          onRetryDraft={(clientId) => retryDraft(clientId, conversationId)}
+          documentError={documentError}
+          onClearDocumentError={() => setDocumentError(null)}
+          onSetDocumentError={setDocumentError}
         />
       </div>
     </div>
