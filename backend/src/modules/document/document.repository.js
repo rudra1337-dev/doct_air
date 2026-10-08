@@ -23,6 +23,14 @@ export const findDocumentsByConversationId = async (conversationId) => {
   }).sort({ createdAt: 1 });
 };
 
+export const findProcessedDocumentsByConversationId = async (conversationId) => {
+  return Document.find({
+    conversationId,
+    status: 'processed',
+    extractedText: { $exists: true, $ne: null, $ne: '' },
+  }).sort({ createdAt: 1 });
+};
+
 export const deleteDocumentById = async (id) => {
   return Document.findByIdAndDelete(id);
 };

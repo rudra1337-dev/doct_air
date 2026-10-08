@@ -278,11 +278,43 @@ export const deleteDocument = async ({ conversationId, documentId, userId }) => 
   return { success: true, message: 'Document deleted successfully' };
 };
 
+/**
+ * Get all successfully processed documents for a conversation with strict ownership check
+ *
+ * @param {Object} params
+ * @param {string} params.conversationId
+ * @param {string} params.userId
+ * @returns {Promise<Array>} List of processed document records with extracted text
+ */
+export const getProcessedDocumentsForConversation = async ({ conversationId, userId }) => {
+  // Verify conversation ownership before loading document data
+  const conversation = await conversationRepo.findConversationById(conversationId);
+
+  if (!conversation || conversation.userId.toString() !== userId.toString()) {
+    const error = new Error('Conversation not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const documents = await documentRepo.findProcessedDocumentsByConversationId(conversationId);
+
+  // Defense-in-depth: ensure all documents match userId and are processed
+  return documents.filter(
+    (doc) =>
+      doc.userId.toString() === userId.toString() &&
+      doc.status === 'processed' &&
+      typeof doc.extractedText === 'string' &&
+      doc.extractedText.trim().length > 0
+  );
+};
+
 export default {
   processDocument,
   uploadDocument,
   getConversationDocuments,
+  getProcessedDocumentsForConversation,
   getDocumentById,
   retryDocumentProcessing,
   deleteDocument,
 };
+

@@ -59,8 +59,8 @@ export const validateCreateMessage = [
 
   body('inputMode')
     .optional()
-    .isIn(['text'])
-    .withMessage('Only "text" input mode is currently supported'),
+    .isIn(['text', 'voice'])
+    .withMessage('Only "text" and "voice" input modes are supported'),
 
   body('stream')
     .optional()

@@ -77,6 +77,7 @@ export const formatMessagesForGemini = (messages = []) => {
  *
  * @param {Object} options
  * @param {Array<{role: string, content: string}>} options.messages - Standardized conversation context
+ * @param {string|null} [options.documentContext] - Optional formatted reference medical document context
  * @param {string} [options.systemInstruction] - Optional override for system instruction
  * @param {Object} [options.config] - Optional overrides for model, temperature, maxOutputTokens
  * @param {Object} [options.client] - Optional injected client (for testing or custom instances)
@@ -85,6 +86,7 @@ export const formatMessagesForGemini = (messages = []) => {
  */
 export const generateResponse = async ({
   messages,
+  documentContext = null,
   systemInstruction,
   config: configOverrides = {},
   client = null,
@@ -93,13 +95,30 @@ export const generateResponse = async ({
   const activeConfig = getGeminiConfig(configOverrides);
   const effectiveApiKey = apiKey !== null ? apiKey : activeConfig.apiKey;
 
-  // 1. Format and validate conversation context
-  const contents = formatMessagesForGemini(messages);
+  // 1. Prepare messages with document context if provided
+  const effectiveMessages =
+    documentContext && typeof documentContext === 'string' && documentContext.trim()
+      ? [
+          {
+            role: 'user',
+            content: documentContext.trim(),
+          },
+          {
+            role: 'model',
+            content:
+              'Understood. I have received the medical report reference context and will use it as factual reference data while answering your health questions.',
+          },
+          ...messages,
+        ]
+      : messages;
 
-  // 2. Resolve client instance
+  // 2. Format and validate conversation context
+  const contents = formatMessagesForGemini(effectiveMessages);
+
+  // 3. Resolve client instance
   const aiClient = client || getGeminiClient(effectiveApiKey);
 
-  // 3. Prepare generation payload
+  // 4. Prepare generation payload
   const effectiveInstruction =
     systemInstruction ||
     activeConfig.systemInstruction ||
@@ -144,6 +163,7 @@ export const generateResponse = async ({
  *
  * @param {Object} options
  * @param {Array<{role: string, content: string}>} options.messages - Standardized conversation context
+ * @param {string|null} [options.documentContext] - Optional formatted reference medical document context
  * @param {string} [options.systemInstruction] - Optional override for system instruction
  * @param {Object} [options.config] - Optional overrides for model, temperature, maxOutputTokens
  * @param {Object} [options.client] - Optional injected client (for testing or custom instances)
@@ -152,6 +172,7 @@ export const generateResponse = async ({
  */
 export async function* generateStream({
   messages,
+  documentContext = null,
   systemInstruction,
   config: configOverrides = {},
   client = null,
@@ -160,8 +181,25 @@ export async function* generateStream({
   const activeConfig = getGeminiConfig(configOverrides);
   const effectiveApiKey = apiKey !== null ? apiKey : activeConfig.apiKey;
 
-  // 1. Format and validate conversation context
-  const contents = formatMessagesForGemini(messages);
+  // 1. Prepare messages with document context if provided
+  const effectiveMessages =
+    documentContext && typeof documentContext === 'string' && documentContext.trim()
+      ? [
+          {
+            role: 'user',
+            content: documentContext.trim(),
+          },
+          {
+            role: 'model',
+            content:
+              'Understood. I have received the medical report reference context and will use it as factual reference data while answering your health questions.',
+          },
+          ...messages,
+        ]
+      : messages;
+
+  // 2. Format and validate conversation context
+  const contents = formatMessagesForGemini(effectiveMessages);
 
   // 2. Resolve client instance
   const aiClient = client || getGeminiClient(effectiveApiKey);

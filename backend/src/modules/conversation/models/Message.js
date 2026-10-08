@@ -26,7 +26,7 @@ const messageSchema = new mongoose.Schema(
     inputMode: {
       type: String,
       enum: {
-        values: ['text'],
+        values: ['text', 'voice'],
         message: '{VALUE} is not a supported input mode',
       },
       default: 'text',

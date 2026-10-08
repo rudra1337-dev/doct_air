@@ -1,6 +1,9 @@
 import * as conversationRepo from './conversation.repository.js';
 import { geminiService } from '../ai/index.js';
+import * as documentService from '../document/document.service.js';
+import { buildDocumentContext } from './documentContext.builder.js';
 import { CONVERSATION_HISTORY_LIMIT } from '../../config/env.js';
+
 
 /**
  * Service layer for conversation business logic and security boundaries
@@ -148,12 +151,37 @@ export const streamUserMessageWithAI = async ({
   // 4. Build the AI context from recent completed messages (including the newly added user message)
   const aiContext = await buildConversationContext(conversationId);
 
+  // 4b. Load authorized processed documents and build delimited document context if available
+  let documentContext = null;
+  try {
+    const processedDocuments = await documentService.getProcessedDocumentsForConversation({
+      conversationId,
+      userId,
+    });
+
+    if (processedDocuments && processedDocuments.length > 0) {
+      documentContext = buildDocumentContext(processedDocuments);
+      if (documentContext) {
+        console.log(
+          `[ConversationService] Injected document context for conv=${conversationId}: ${processedDocuments.length} doc(s), ${documentContext.length} chars`
+        );
+      }
+    }
+  } catch (docErr) {
+    // Graceful degradation: If document context retrieval fails, continue with normal conversation
+    console.warn(
+      `[ConversationService] Document context retrieval warning for conv=${conversationId}:`,
+      docErr.message
+    );
+  }
+
   // 5. Pass context to isolated Gemini service and stream response
   let fullAssistantText = '';
 
   try {
     const stream = geminiService.generateStream({
       messages: aiContext,
+      documentContext,
       client,
       apiKey,
     });
