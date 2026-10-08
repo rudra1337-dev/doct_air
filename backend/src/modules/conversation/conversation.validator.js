@@ -40,13 +40,61 @@ export const validateCreateMessage = [
     .withMessage('Invalid conversation ID format'),
 
   body('content')
+    .optional({ values: 'falsy' })
     .isString()
     .withMessage('Message content must be text')
     .trim()
-    .notEmpty()
-    .withMessage('Message content cannot be empty')
-    .isLength({ min: 1, max: 10000 })
+    .isLength({ max: 10000 })
     .withMessage('Message content cannot exceed 10000 characters'),
+
+  body().custom((_value, { req }) => {
+    const content = typeof req.body?.content === 'string' ? req.body.content.trim() : '';
+    const attachments = req.body?.attachments || req.body?.attachmentIds;
+    const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+    if (!content && !hasAttachments) {
+      throw new Error('Message must contain text content or at least one attachment');
+    }
+    return true;
+  }),
+
+  body('attachments')
+    .optional()
+    .isArray()
+    .withMessage('attachments must be an array of attachment IDs')
+    .custom((val) => {
+      for (const id of val) {
+        if (typeof id !== 'string' || !/^[0-9a-fA-F]{24}$/.test(id)) {
+          throw new Error('All attachments must be valid Mongo ID strings');
+        }
+      }
+      return true;
+    }),
+
+  body('attachmentIds')
+    .optional()
+    .isArray()
+    .withMessage('attachmentIds must be an array of attachment IDs')
+    .custom((val) => {
+      for (const id of val) {
+        if (typeof id !== 'string' || !/^[0-9a-fA-F]{24}$/.test(id)) {
+          throw new Error('All attachmentIds must be valid Mongo ID strings');
+        }
+      }
+      return true;
+    }),
+
+  body('documentIds')
+    .optional()
+    .isArray()
+    .withMessage('documentIds must be an array of document IDs')
+    .custom((val) => {
+      for (const id of val) {
+        if (typeof id !== 'string' || !/^[0-9a-fA-F]{24}$/.test(id)) {
+          throw new Error('All documentIds must be valid Mongo ID strings');
+        }
+      }
+      return true;
+    }),
 
   body('role')
     .optional()

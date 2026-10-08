@@ -37,6 +37,8 @@ export const MAX_DOCUMENT_FILE_SIZE_MB = process.env.MAX_DOCUMENT_FILE_SIZE_MB
   : 10;
 export const MAX_DOCUMENT_FILE_SIZE_BYTES = MAX_DOCUMENT_FILE_SIZE_MB * 1024 * 1024;
 export const DOCUMENT_UPLOAD_DIR = process.env.DOCUMENT_UPLOAD_DIR || 'uploads/documents';
+export const TEMP_ATTACHMENT_UPLOAD_DIR = process.env.TEMP_ATTACHMENT_UPLOAD_DIR || 'uploads/temp_attachments';
+export const TEMP_ATTACHMENT_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 // Document Context for AI Configuration
 export const MAX_DOCUMENT_CONTEXT_CHARS = process.env.MAX_DOCUMENT_CONTEXT_CHARS

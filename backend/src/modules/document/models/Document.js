@@ -14,6 +14,12 @@ const documentSchema = new mongoose.Schema(
       required: [true, 'Conversation ID is required'],
       index: true,
     },
+    messageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Message',
+      default: null,
+      index: true,
+    },
     originalName: {
       type: String,
       required: [true, 'Original filename is required'],
@@ -97,6 +103,9 @@ documentSchema.set('toJSON', {
     ret.id = ret._id.toString();
     ret.userId = ret.userId.toString();
     ret.conversationId = ret.conversationId.toString();
+    if (ret.messageId) {
+      ret.messageId = ret.messageId.toString();
+    }
     delete ret._id;
     delete ret.__v;
     delete ret.storagePath; // Security: Never expose internal server filesystem paths

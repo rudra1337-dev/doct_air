@@ -33,12 +33,26 @@ export const conversationService = {
    * @param {Function} [callbacks.onComplete] - Called on message_complete ({ conversationId, message })
    * @param {Function} [callbacks.onError] - Called on message_error ({ conversationId, error, partial })
    * @param {AbortSignal} [callbacks.signal] - Optional abort signal
+   * @param {Array<string>} [callbacks.attachments] - Optional array of draft attachment IDs
+   * @param {Array<string>} [callbacks.documentIds] - Optional array of document IDs to scope context to
    */
-  streamMessage: async (conversationId, content, { onStart, onDelta, onComplete, onError, signal } = {}) => {
+  streamMessage: async (
+    conversationId,
+    content,
+    { onStart, onDelta, onComplete, onError, signal, attachments, documentIds } = {}
+  ) => {
     try {
+      const payload = { content };
+      if (Array.isArray(attachments)) {
+        payload.attachments = attachments;
+      }
+      if (Array.isArray(documentIds)) {
+        payload.documentIds = documentIds;
+      }
+
       const stream = await apiClient.post(
         `/conversations/${conversationId}/messages/stream`,
-        { content },
+        payload,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -46,6 +60,7 @@ export const conversationService = {
           },
           responseType: 'stream',
           adapter: 'fetch',
+          timeout: 0, // Ensure long-running SSE streaming responses are not terminated by Axios client timeout
           signal,
         }
       );

@@ -11,9 +11,10 @@ export const documentService = {
    * @param {File} file
    * @param {Object} [options]
    * @param {Function} [options.onUploadProgress]
+   * @param {AbortSignal} [options.signal]
    * @returns {Promise<{ success: boolean, document: Object }>}
    */
-  uploadDocument: (conversationId, file, { onUploadProgress } = {}) => {
+  uploadDocument: (conversationId, file, { onUploadProgress, signal } = {}) => {
     const formData = new FormData();
     formData.append('file', file);
 
@@ -21,7 +22,9 @@ export const documentService = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      timeout: 60000,
       onUploadProgress,
+      signal,
     });
   },
 

@@ -315,4 +315,38 @@ test('Document-Aware Gemini Conversation Test Suite', async (t) => {
     assert.equal(req.contents[0].parts[0].text, 'I have a mild headache.');
     assert.equal(req.contents[0].parts[0].text.includes('MEDICAL REPORT CONTEXT'), false);
   });
+
+  await t.test('9. documentIds filter selectively includes only specified document in AI context', async () => {
+    // convA has CBC_Report.pdf and Lipid_Panel.pdf
+    const cbcDoc = await Document.findOne({ conversationId: convA._id, originalName: 'CBC_Report.pdf' });
+    assert.ok(cbcDoc);
+
+    const mockAi = createMockAiClient(['Filtered response.']);
+    await streamUserMessageWithAI({
+      conversationId: convA._id.toString(),
+      userId: userA._id.toString(),
+      content: 'What does this specific report say?',
+      documentIds: [cbcDoc._id.toString()],
+      client: mockAi,
+    });
+
+    const req = mockAi.getCapturedRequest();
+    const docContextText = req.contents[0].parts[0].text;
+    assert.match(docContextText, /CBC_Report\.pdf/);
+    assert.doesNotMatch(docContextText, /Lipid_Panel\.pdf/);
+  });
+
+  await t.test('10. Empty documentIds array excludes all documents even when processed documents exist', async () => {
+    const mockAi = createMockAiClient(['No docs attached response.']);
+    await streamUserMessageWithAI({
+      conversationId: convA._id.toString(),
+      userId: userA._id.toString(),
+      content: 'Hello with empty attachments array.',
+      documentIds: [],
+      client: mockAi,
+    });
+
+    const req = mockAi.getCapturedRequest();
+    assert.equal(req.contents[0].parts[0].text.includes('MEDICAL REPORT CONTEXT'), false);
+  });
 });

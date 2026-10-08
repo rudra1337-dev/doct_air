@@ -14,6 +14,7 @@ import {
 import useVoiceCapabilities from '../../../hooks/useVoiceCapabilities';
 import useSpeechRecognition from '../../../hooks/useSpeechRecognition';
 import useSpeechSynthesis from '../../../hooks/useSpeechSynthesis';
+import useDraftAttachments from './hooks/useDraftAttachments';
 import './PatientConsultation.css';
 
 export default function PatientConsultation() {
@@ -41,13 +42,24 @@ export default function PatientConsultation() {
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [lastFailedPrompt, setLastFailedPrompt] = useState('');
 
-  // Attached Medical Reports state (Step 3.1 & Step 3.2)
+  // Attached Medical Reports state (persisted)
   const [documents, setDocuments] = useState([]);
-  const [isUploadingDocument, setIsUploadingDocument] = useState(false);
-  const [uploadingFileName, setUploadingFileName] = useState('');
   const [documentError, setDocumentError] = useState(null);
-  const [isDeletingDocumentId, setIsDeletingDocumentId] = useState(null);
-  const [isRetryingDocumentId, setIsRetryingDocumentId] = useState(null);
+
+  // ChatGPT-style Draft Attachments hook
+  const {
+    drafts,
+    addDrafts,
+    removeDraft,
+    retryDraft,
+    clearDrafts,
+    hasUploading: hasUploadingDrafts,
+    hasFailed: hasFailedDrafts,
+    readyAttachmentIds,
+  } = useDraftAttachments({
+    conversationId,
+    onError: (err) => setDocumentError(err),
+  });
 
   // Voice capabilities & Push-to-Talk Speech Recognition & Text-to-Speech
   const { speechRecognitionSupported, speechSynthesisSupported } = useVoiceCapabilities();
@@ -84,10 +96,15 @@ export default function PatientConsultation() {
     [resetVoiceState, toggleSpeak]
   );
 
-  // Refs for race-condition prevention and stream abortion
+  // Refs for race-condition prevention, deletion tracking, and stream abortion
   const isSubmittingRef = useRef(false);
   const streamAbortControllerRef = useRef(null);
   const isNewConversationInitiatedRef = useRef(null);
+  const deletingIdsRef = useRef(new Set());
+  const activeConversationIdRef = useRef(conversationId);
+  useEffect(() => {
+    activeConversationIdRef.current = conversationId;
+  }, [conversationId]);
 
   // Active conversation object from list
   const activeConv = conversations.find((c) => c.id === conversationId);
@@ -219,7 +236,16 @@ export default function PatientConsultation() {
       try {
         const docRes = await documentService.getDocuments(conversationId);
         if (!isCancelled && docRes?.success && Array.isArray(docRes.documents)) {
-          setDocuments(docRes.documents);
+          setDocuments((prev) => {
+            const filteredServerDocs = docRes.documents.filter(
+              (d) => !deletingIdsRef.current.has(d.id)
+            );
+            const serverDocIds = new Set(filteredServerDocs.map((d) => d.id));
+            const pendingPrevDocs = prev.filter(
+              (d) => !serverDocIds.has(d.id) && !deletingIdsRef.current.has(d.id)
+            );
+            return [...filteredServerDocs, ...pendingPrevDocs];
+          });
         }
       } catch (err) {
         if (!isCancelled) {
@@ -251,7 +277,16 @@ export default function PatientConsultation() {
       try {
         const res = await documentService.getDocuments(conversationId);
         if (res?.success && Array.isArray(res.documents)) {
-          setDocuments(res.documents);
+          setDocuments((prev) => {
+            const filteredServerDocs = res.documents.filter(
+              (d) => !deletingIdsRef.current.has(d.id)
+            );
+            const serverDocIds = new Set(filteredServerDocs.map((d) => d.id));
+            const pendingPrevDocs = prev.filter(
+              (d) => !serverDocIds.has(d.id) && !deletingIdsRef.current.has(d.id)
+            );
+            return [...filteredServerDocs, ...pendingPrevDocs];
+          });
         }
       } catch (err) {
         console.warn('Failed to refresh document processing status:', err.message);
@@ -279,6 +314,9 @@ export default function PatientConsultation() {
       setIsStreaming(false);
     }
 
+    // Abort in-flight draft uploads and clear draft state
+    clearDrafts();
+
     if (activeSessionKey) {
       sessionStorage.removeItem(activeSessionKey);
     }
@@ -289,8 +327,7 @@ export default function PatientConsultation() {
     setMessagesError(null);
     setDocuments([]);
     setDocumentError(null);
-    setIsUploadingDocument(false);
-    setUploadingFileName('');
+    clearDrafts();
     setInput('');
     navigate('/patient/consultation', { state: { explicitNew: true } });
   };
@@ -303,6 +340,11 @@ export default function PatientConsultation() {
         streamAbortControllerRef.current = null;
         setIsStreaming(false);
       }
+
+      // Abort in-flight draft uploads and clear draft state before switching
+      clearDrafts();
+      setDocumentError(null);
+
       stopSpeech();
       resetVoiceState();
       navigate(`/patient/consultation/${id}`);
@@ -311,10 +353,21 @@ export default function PatientConsultation() {
 
   // 6. Send Message & Progressive SSE Streaming Orchestration
   const handleSend = async (customPrompt) => {
-    const promptText = (customPrompt || input).trim();
-    if (!promptText || isStreaming || isSubmittingRef.current) return;
+    const promptText = (customPrompt !== undefined ? customPrompt : input).trim();
+    const attachmentsToSend = [...readyAttachmentIds];
 
-    // Stop active speech playback and voice recognition if user sends new prompt
+    // Enforce send gating: must have text OR at least one ready attachment; no pending uploads or failures
+    if (
+      (!promptText && attachmentsToSend.length === 0) ||
+      isStreaming ||
+      isSubmittingRef.current ||
+      hasUploadingDrafts ||
+      hasFailedDrafts
+    ) {
+      return;
+    }
+
+    // Stop active speech playback and voice recognition when user sends message
     stopSpeech();
     resetVoiceState();
 
@@ -324,11 +377,13 @@ export default function PatientConsultation() {
 
     let targetConvId = conversationId;
 
-    // If starting from clean state (no active conversationId), create one first
+    // If starting from clean state (no active conversationId), initialize one first
     if (!targetConvId) {
       try {
-        const titleSnippet =
-          promptText.length > 40 ? `${promptText.slice(0, 40)}...` : promptText;
+        const titleSnippet = promptText
+          ? (promptText.length > 40 ? `${promptText.slice(0, 40)}...` : promptText)
+          : drafts[0]?.fileName?.replace(/\.pdf$/i, '').slice(0, 40) || 'Medical Report Consultation';
+
         const createRes = await conversationService.createConversation(titleSnippet);
 
         if (createRes?.success && createRes.conversation?.id) {
@@ -338,6 +393,7 @@ export default function PatientConsultation() {
           };
           targetConvId = newConv.id;
           isNewConversationInitiatedRef.current = newConv.id;
+          activeConversationIdRef.current = newConv.id;
 
           // Prepend and sort conversations list
           setConversations((prev) => sortConversationsByRecent([newConv, ...prev]));
@@ -357,6 +413,18 @@ export default function PatientConsultation() {
       }
     }
 
+    // Snapshot ready drafts being committed for optimistic bubble display
+    const optimisticAttachments = drafts
+      .filter((d) => d.status === 'ready' && attachmentsToSend.includes(d.attachmentId))
+      .map((d) => ({
+        documentId: d.attachmentId,
+        originalName: d.fileName,
+        fileSize: d.fileSize,
+      }));
+
+    // Clear draft attachments from composer immediately upon sending (committed)
+    clearDrafts();
+
     // Set up optimistic message entries
     const tempUserId = `temp-user-${Date.now()}`;
     const tempAssistantId = `temp-assistant-${Date.now()}`;
@@ -365,6 +433,7 @@ export default function PatientConsultation() {
       id: tempUserId,
       role: 'user',
       content: promptText,
+      attachments: optimisticAttachments,
       status: 'sending',
       createdAt: new Date().toISOString(),
     };
@@ -386,6 +455,7 @@ export default function PatientConsultation() {
 
     try {
       await conversationService.streamMessage(targetConvId, promptText, {
+        attachments: attachmentsToSend,
         signal: controller.signal,
         onStart: (data) => {
           if (data?.userMessage) {
@@ -424,12 +494,19 @@ export default function PatientConsultation() {
                       lastMessageAt: data.message.createdAt || new Date().toISOString(),
                       displayTitle:
                         c.displayTitle ||
-                        deriveConversationTitle(c, promptText),
+                        deriveConversationTitle(c, promptText || 'Medical Report Consultation'),
                     }
                   : c
               );
               return sortConversationsByRecent(updated);
             });
+
+            // Refresh persisted documents for header counter badge
+            documentService.getDocuments(targetConvId).then((res) => {
+              if (res?.success && Array.isArray(res.documents)) {
+                setDocuments(res.documents);
+              }
+            }).catch(() => {});
           }
         },
         onError: (_data) => {
@@ -461,125 +538,6 @@ export default function PatientConsultation() {
     if (lastFailedPrompt) {
       setMessages((prev) => prev.filter((m) => m.status !== 'failed'));
       handleSend(lastFailedPrompt);
-    }
-  };
-
-  // 8. Attach PDF Medical Report (Step 3.1)
-  const handleAttachDocument = async (file) => {
-    if (!file || isUploadingDocument) return;
-
-    setDocumentError(null);
-    setIsUploadingDocument(true);
-    setUploadingFileName(file.name);
-
-    let targetConvId = conversationId;
-
-    // If attaching from an empty state without active conversationId, initialize conversation first
-    if (!targetConvId) {
-      try {
-        const titleSnippet =
-          file.name.replace(/\.pdf$/i, '').slice(0, 40).trim() || 'Medical Report Consultation';
-        const createRes = await conversationService.createConversation(titleSnippet);
-
-        if (createRes?.success && createRes.conversation?.id) {
-          const newConv = {
-            ...createRes.conversation,
-            displayTitle: titleSnippet,
-          };
-          targetConvId = newConv.id;
-          isNewConversationInitiatedRef.current = newConv.id;
-
-          setConversations((prev) => sortConversationsByRecent([newConv, ...prev]));
-
-          if (activeSessionKey) {
-            sessionStorage.setItem(activeSessionKey, newConv.id);
-          }
-          navigate(`/patient/consultation/${newConv.id}`, { replace: true });
-        } else {
-          throw new Error('Could not initialize consultation session for document.');
-        }
-      } catch (err) {
-        console.error('Conversation initialization failed during document upload:', err);
-        setDocumentError(err.message || 'Failed to start consultation for report.');
-        setIsUploadingDocument(false);
-        setUploadingFileName('');
-        return;
-      }
-    }
-
-    try {
-      const uploadRes = await documentService.uploadDocument(targetConvId, file);
-      if (uploadRes?.success && uploadRes.document) {
-        setDocuments((prev) => [...prev, uploadRes.document]);
-      } else {
-        throw new Error(uploadRes?.message || 'Failed to attach medical report.');
-      }
-    } catch (err) {
-      console.error('Document upload error:', err);
-      setDocumentError(err.message || 'The report could not be uploaded. Please try again.');
-    } finally {
-      setIsUploadingDocument(false);
-      setUploadingFileName('');
-    }
-  };
-
-  // 9. Delete Attached Document
-  const handleDeleteDocument = async (docId) => {
-    if (!conversationId || !docId || isDeletingDocumentId) return;
-
-    setIsDeletingDocumentId(docId);
-    setDocumentError(null);
-
-    try {
-      const res = await documentService.deleteDocument(conversationId, docId);
-      if (res?.success) {
-        setDocuments((prev) => prev.filter((d) => d.id !== docId));
-      } else {
-        throw new Error(res?.message || 'Failed to delete report.');
-      }
-    } catch (err) {
-      console.error('Document delete error:', err);
-      setDocumentError(err.message || 'Failed to remove document.');
-    } finally {
-      setIsDeletingDocumentId(null);
-    }
-  };
-
-  // 10. Retry Failed Document Processing (Step 3.2)
-  const handleRetryDocument = async (docId) => {
-    if (!conversationId || !docId || isRetryingDocumentId) return;
-
-    setIsRetryingDocumentId(docId);
-    setDocumentError(null);
-
-    // Optimistically update document status to processing
-    setDocuments((prev) =>
-      prev.map((d) => (d.id === docId ? { ...d, status: 'processing', processingError: null } : d))
-    );
-
-    try {
-      const res = await documentService.retryProcessing(conversationId, docId);
-      if (res?.success && res.document) {
-        setDocuments((prev) =>
-          prev.map((d) => (d.id === docId ? res.document : d))
-        );
-      } else {
-        throw new Error(res?.message || 'Failed to retry report processing.');
-      }
-    } catch (err) {
-      console.error('Document processing retry error:', err);
-      setDocumentError(err.message || 'Retry failed. Please check the document or upload again.');
-      // Refresh documents to sync state
-      try {
-        const refreshRes = await documentService.getDocuments(conversationId);
-        if (refreshRes?.success && Array.isArray(refreshRes.documents)) {
-          setDocuments(refreshRes.documents);
-        }
-      } catch {
-        // ignore
-      }
-    } finally {
-      setIsRetryingDocumentId(null);
     }
   };
 
@@ -688,7 +646,7 @@ export default function PatientConsultation() {
         <ChatInput
           value={input}
           onChange={setInput}
-          onSend={(text) => handleSend(text || input)}
+          onSend={(text) => handleSend(text !== undefined ? text : input)}
           disabled={isLoadingMessages || Boolean(messagesError)}
           isStreaming={isStreaming}
           speechRecognitionSupported={speechRecognitionSupported}
@@ -696,16 +654,13 @@ export default function PatientConsultation() {
           onToggleVoice={handleToggleVoice}
           voiceError={voiceError}
           interimTranscript={interimTranscript}
-          documents={documents}
-          isUploadingDocument={isUploadingDocument}
-          uploadingFileName={uploadingFileName}
-          onAttachDocument={handleAttachDocument}
-          onDeleteDocument={handleDeleteDocument}
-          isDeletingDocumentId={isDeletingDocumentId}
-          onRetryDocument={handleRetryDocument}
-          isRetryingDocumentId={isRetryingDocumentId}
+          draftAttachments={drafts}
+          onAttachFiles={(files) => addDrafts(files, conversationId)}
+          onRemoveDraft={removeDraft}
+          onRetryDraft={(clientId) => retryDraft(clientId, conversationId)}
           documentError={documentError}
           onClearDocumentError={() => setDocumentError(null)}
+          onSetDocumentError={setDocumentError}
         />
       </div>
     </div>

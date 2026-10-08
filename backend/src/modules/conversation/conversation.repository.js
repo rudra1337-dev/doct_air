@@ -34,19 +34,26 @@ export const updateConversationLastMessage = async (id, timestamp = new Date()) 
 };
 
 export const createMessage = async ({
+  _id,
   conversationId,
   role = 'user',
   content,
+  attachments = [],
   inputMode = 'text',
   status = 'completed',
 }) => {
-  return Message.create({
+  const payload = {
     conversationId,
     role,
     content,
+    attachments,
     inputMode,
     status,
-  });
+  };
+  if (_id) {
+    payload._id = _id;
+  }
+  return Message.create(payload);
 };
 
 export const findMessagesByConversationId = async (conversationId) => {

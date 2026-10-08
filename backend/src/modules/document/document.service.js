@@ -286,7 +286,7 @@ export const deleteDocument = async ({ conversationId, documentId, userId }) => 
  * @param {string} params.userId
  * @returns {Promise<Array>} List of processed document records with extracted text
  */
-export const getProcessedDocumentsForConversation = async ({ conversationId, userId }) => {
+export const getProcessedDocumentsForConversation = async ({ conversationId, userId, documentIds }) => {
   // Verify conversation ownership before loading document data
   const conversation = await conversationRepo.findConversationById(conversationId);
 
@@ -296,15 +296,32 @@ export const getProcessedDocumentsForConversation = async ({ conversationId, use
     throw error;
   }
 
-  const documents = await documentRepo.findProcessedDocumentsByConversationId(conversationId);
+  // If documentIds is explicitly passed as an empty array, caller requested 0 documents
+  if (Array.isArray(documentIds) && documentIds.length === 0) {
+    return [];
+  }
 
-  // Defense-in-depth: ensure all documents match userId and are processed
+  // Query MongoDB with conversationId, userId, and optional documentIds strictly enforced
+  const documents = await documentRepo.findProcessedDocumentsByConversationId(
+    conversationId,
+    userId,
+    documentIds
+  );
+
+  // If documentIds is explicitly passed as an array, filter by those IDs
+  const idFilterSet = Array.isArray(documentIds)
+    ? new Set(documentIds.map((id) => id.toString()))
+    : null;
+
+  // Defense-in-depth: ensure all documents strictly match conversationId, userId, and are processed
   return documents.filter(
     (doc) =>
+      doc.conversationId.toString() === conversationId.toString() &&
       doc.userId.toString() === userId.toString() &&
       doc.status === 'processed' &&
       typeof doc.extractedText === 'string' &&
-      doc.extractedText.trim().length > 0
+      doc.extractedText.trim().length > 0 &&
+      (!idFilterSet || idFilterSet.has(doc._id.toString()))
   );
 };
 

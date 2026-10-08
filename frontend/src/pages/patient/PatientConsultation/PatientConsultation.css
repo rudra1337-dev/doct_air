@@ -373,10 +373,10 @@
 /* ── 3. Scrollable Message Stream ────────────────────── */
 
 .chat-messages {
-  flex: 1;
+  flex: 1 1 0%;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 1.5rem 1.5rem 140px; /* comfortable bottom clearing for floating composer */
+  padding: 1.5rem 1.5rem 1rem;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -677,6 +677,38 @@
   white-space: pre-wrap;
 }
 
+.chat-bubble-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.chat-bubble-attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  color: #f1f5f9;
+  max-width: 100%;
+}
+
+.chat-bubble-attachment-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.chat-bubble-attachment-size {
+  font-size: 0.675rem;
+  opacity: 0.8;
+}
+
 .chat-bubble-status {
   display: block;
   font-size: 0.7rem;
@@ -850,13 +882,14 @@
 /* ── 5. Welcome Screen ────────────────────────────────── */
 
 .chat-welcome {
-  flex: 1;
+  flex: 1 1 0%;
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  padding: 2rem 1.5rem 140px; /* clear floating composer */
+  padding: 2rem 1.5rem 1rem;
   width: 100%;
+  min-height: 0;
 }
 
 .chat-welcome__inner {
@@ -980,16 +1013,15 @@
   line-height: 1.35;
 }
 
-/* ── 6. Modern Floating Input / Composer ─────────────── */
+/* ── 6. Fixed/Sticky Bottom Composer Dock ─────────────── */
 
 .chat-input-wrapper {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 0 1.5rem 1.25rem;
-  background: linear-gradient(180deg, transparent 0%, rgba(9, 13, 26, 0.75) 25%, #090d1a 60%);
-  pointer-events: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 100%;
+  padding: 0.75rem 1.5rem 1.15rem;
+  background: #090d1a;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   z-index: 20;
   display: flex;
   flex-direction: column;
@@ -997,23 +1029,37 @@
 }
 
 .chat-input-container {
-  pointer-events: auto;
   width: 100%;
   max-width: 768px;
   background: #111827;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 24px;
+  border-radius: 20px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
-  padding: 0.75rem 0.85rem 0.75rem 1.25rem;
+  padding: 0.75rem 0.85rem;
   display: flex;
-  align-items: flex-end;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.5rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .chat-input-container:focus-within {
   border-color: rgba(56, 189, 248, 0.5);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(56, 189, 248, 0.3);
+}
+
+.chat-input-controls-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.chat-input-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  margin-bottom: 1px;
 }
 
 .chat-textarea {
@@ -1209,11 +1255,12 @@
   opacity: 1;
 }
 
-/* Attached Documents Tray & Cards */
+/* Attached Documents Tray & Cards Inside Composer Dock */
 .chat-attached-docs {
-  max-width: 768px;
   width: 100%;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -1246,18 +1293,18 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.35rem 0.65rem;
-  background: #1e293b;
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  padding: 0.35rem 0.6rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  max-width: 280px;
-  min-width: 150px;
+  max-width: 260px;
+  min-width: 130px;
   transition: all 0.15s ease;
 }
 
 .chat-doc-card:hover {
-  border-color: rgba(56, 189, 248, 0.25);
-  background: #243248;
+  border-color: rgba(56, 189, 248, 0.3);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .chat-doc-card--uploading {
@@ -1489,11 +1536,11 @@
   }
 
   .chat-messages {
-    padding: 1rem 1rem 120px;
+    padding: 1rem 1rem 0.75rem;
   }
 
   .chat-welcome {
-    padding: 1.5rem 1rem 120px;
+    padding: 1.5rem 1rem 0.75rem;
   }
 
   .suggestions-grid {
@@ -1509,11 +1556,11 @@
   }
 
   .chat-input-wrapper {
-    padding: 0 0.85rem 0.85rem;
+    padding: 0.5rem 0.75rem 0.75rem;
   }
 
   .chat-input-container {
-    border-radius: 20px;
-    padding: 0.65rem 0.75rem 0.65rem 1rem;
+    border-radius: 16px;
+    padding: 0.5rem 0.65rem;
   }
 }
