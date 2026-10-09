@@ -326,6 +326,43 @@ const missingInfoItemSchema = new mongoose.Schema(
 );
 
 /**
+ * Discrepancy / Competing Claim sub-schema
+ * Preserves conflicting statements (e.g. symptom onset or severity revisions)
+ * without clinically deciding which statement is correct.
+ */
+const discrepancyItemSchema = new mongoose.Schema(
+  {
+    field: {
+      type: String,
+      required: [true, 'Discrepancy field is required'],
+      trim: true,
+      maxlength: [100, 'Field name cannot exceed 100 characters'],
+    },
+    previousValue: {
+      type: String,
+      trim: true,
+      default: null,
+      maxlength: [500, 'Previous value cannot exceed 500 characters'],
+    },
+    newValue: {
+      type: String,
+      required: [true, 'New value is required'],
+      trim: true,
+      maxlength: [500, 'New value cannot exceed 500 characters'],
+    },
+    source: {
+      type: sourceAttributionSchema,
+      default: null,
+    },
+    recordedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: true }
+);
+
+/**
  * Primary Medical Case Schema
  *
  * Stores structured, evolving clinical information gathered during an existing conversation.
@@ -483,9 +520,37 @@ const caseSchema = new mongoose.Schema(
       type: [missingInfoItemSchema],
       default: [],
     },
+
+    discrepancies: {
+      type: [discrepancyItemSchema],
+      default: [],
+    },
+
+    processedMessageIds: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Message',
+        },
+      ],
+      default: [],
+      index: true,
+    },
+
+    processedDocumentIds: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Document',
+        },
+      ],
+      default: [],
+      index: true,
+    },
   },
   {
     timestamps: true,
+    optimisticConcurrency: true,
   }
 );
 
@@ -498,6 +563,16 @@ caseSchema.set('toJSON', {
     ret.id = ret._id.toString();
     ret.patientId = ret.patientId.toString();
     ret.conversationId = ret.conversationId.toString();
+    if (Array.isArray(ret.processedMessageIds)) {
+      ret.processedMessageIds = ret.processedMessageIds.map((id) =>
+        id ? id.toString() : id
+      );
+    }
+    if (Array.isArray(ret.processedDocumentIds)) {
+      ret.processedDocumentIds = ret.processedDocumentIds.map((id) =>
+        id ? id.toString() : id
+      );
+    }
     delete ret._id;
     delete ret.__v;
     return ret;

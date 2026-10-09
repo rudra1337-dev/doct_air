@@ -1,5 +1,6 @@
 import asyncHandler from '../../utils/asyncHandler.js';
 import * as caseService from './case.service.js';
+import * as caseExtractionService from './case.extraction.service.js';
 
 /**
  * @route   POST /api/cases OR POST /api/conversations/:conversationId/case
@@ -115,10 +116,59 @@ export const updateCaseStatusHandler = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @route   POST /api/cases/conversation/:conversationId/extract OR POST /api/conversations/:conversationId/case/extract
+ * @desc    Extract clinical facts from conversation messages and merge into Case
+ * @access  Private (Authorized Patient owner or Clinician)
+ */
+export const extractCaseHandler = asyncHandler(async (req, res) => {
+  const userId = req.user._id || req.user.id;
+  const userRole = req.user.role;
+  const conversationId = req.params.conversationId || req.body.conversationId;
+  const { messageId } = req.body || {};
+
+  const updatedCase = await caseExtractionService.extractAndMergeCaseForConversation({
+    conversationId,
+    userId,
+    userRole,
+    messageId,
+  });
+
+  res.status(200).json({
+    success: true,
+    case: updatedCase,
+  });
+});
+
+/**
+ * @route   POST /api/cases/conversation/:conversationId/documents/:documentId/extract OR POST /api/conversations/:conversationId/case/documents/:documentId/extract
+ * @desc    Extract clinical findings from a processed document and merge into Case
+ * @access  Private (Authorized Patient owner or Clinician)
+ */
+export const extractDocumentCaseHandler = asyncHandler(async (req, res) => {
+  const userId = req.user._id || req.user.id;
+  const userRole = req.user.role;
+  const { conversationId, documentId } = req.params;
+
+  const updatedCase = await caseExtractionService.extractAndMergeCaseForDocument({
+    conversationId,
+    userId,
+    userRole,
+    documentId,
+  });
+
+  res.status(200).json({
+    success: true,
+    case: updatedCase,
+  });
+});
+
 export default {
   createCaseHandler,
   getCaseHandler,
   getCaseByConversationHandler,
   updateCaseHandler,
   updateCaseStatusHandler,
+  extractCaseHandler,
+  extractDocumentCaseHandler,
 };

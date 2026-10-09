@@ -16,8 +16,13 @@ import documentRoutes from '../document/document.routes.js';
 import {
   createCaseHandler,
   getCaseByConversationHandler,
+  extractCaseHandler,
+  extractDocumentCaseHandler,
 } from '../case/case.controller.js';
-import { validateConversationIdParam } from '../case/case.validator.js';
+import {
+  validateConversationIdParam,
+  validateDocumentAndConversationParams,
+} from '../case/case.validator.js';
 
 const router = Router();
 
@@ -32,6 +37,14 @@ router
   .route('/:conversationId/case')
   .get(validateConversationIdParam, getCaseByConversationHandler)
   .post(validateConversationIdParam, createCaseHandler);
+
+router
+  .route('/:conversationId/case/extract')
+  .post(validateConversationIdParam, extractCaseHandler);
+
+router
+  .route('/:conversationId/case/documents/:documentId/extract')
+  .post(validateDocumentAndConversationParams, extractDocumentCaseHandler);
 
 router
   .route('/')

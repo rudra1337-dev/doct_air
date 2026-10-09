@@ -72,3 +72,19 @@ export const findRecentCompletedMessages = async (conversationId, limit = 20) =>
   return messages.reverse();
 };
 
+export const findMessageById = async (id) => {
+  return Message.findById(id);
+};
+
+export default {
+  createConversation,
+  findConversationsByUserId,
+  findConversationById,
+  findConversationByIdAndUserId,
+  updateConversationLastMessage,
+  createMessage,
+  findMessagesByConversationId,
+  findRecentCompletedMessages,
+  findMessageById,
+};
+
