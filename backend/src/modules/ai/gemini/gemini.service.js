@@ -125,14 +125,18 @@ export const generateResponse = async ({
     DEFAULT_HEALTHCARE_SYSTEM_INSTRUCTION;
 
   try {
+    const generationConfig = {
+      systemInstruction: effectiveInstruction,
+      temperature: activeConfig.temperature,
+      maxOutputTokens: activeConfig.maxOutputTokens,
+      ...(configOverrides.responseMimeType ? { responseMimeType: configOverrides.responseMimeType } : {}),
+      ...(configOverrides.responseSchema ? { responseSchema: configOverrides.responseSchema } : {}),
+    };
+
     const response = await aiClient.models.generateContent({
       model: activeConfig.model,
       contents,
-      config: {
-        systemInstruction: effectiveInstruction,
-        temperature: activeConfig.temperature,
-        maxOutputTokens: activeConfig.maxOutputTokens,
-      },
+      config: generationConfig,
     });
 
     const generatedText = response.text || '';

@@ -5,6 +5,7 @@ import * as documentService from '../document/document.service.js';
 import * as attachmentService from '../attachment/attachment.service.js';
 import { buildDocumentContext } from './documentContext.builder.js';
 import { CONVERSATION_HISTORY_LIMIT } from '../../config/env.js';
+import { extractAndMergeCaseForConversation } from '../case/case.extraction.service.js';
 
 
 /**
@@ -291,6 +292,22 @@ export const streamUserMessageWithAI = async ({
         message: safeAssistantMessage,
       });
     }
+
+    // Trigger asynchronous background structured case extraction
+    // Does NOT block, delay, or append to the SSE stream or user response
+    extractAndMergeCaseForConversation({
+      conversationId,
+      userId,
+      userRole: 'PATIENT',
+      messageId: userMessage._id,
+      client,
+      apiKey,
+    }).catch((err) => {
+      console.error(
+        `[CaseExtraction] Background extraction error for conv=${conversationId}:`,
+        err.message
+      );
+    });
 
     return {
       userMessage: safeUserMessage,

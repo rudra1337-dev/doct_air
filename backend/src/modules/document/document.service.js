@@ -2,6 +2,7 @@ import fs from 'fs';
 import * as documentRepo from './document.repository.js';
 import * as conversationRepo from '../conversation/conversation.repository.js';
 import * as documentProcessor from './document.processor.js';
+import { extractAndMergeCaseForDocument } from '../case/case.extraction.service.js';
 
 /**
  * Service layer for Document management, security boundaries, and processing lifecycle.
@@ -46,6 +47,19 @@ export const processDocument = async (documentId) => {
       console.log(
         `[DocumentService] Document processed successfully: id=${documentId} pages=${extractionResult.totalPages} chars=${extractionResult.characterCount} duration=${durationMs}ms`
       );
+
+      // Trigger asynchronous background structured findings extraction into Case
+      // Non-blocking fire-and-forget; handles failures safely without crashing
+      extractAndMergeCaseForDocument({
+        conversationId: updated.conversationId,
+        userId: updated.userId,
+        documentId: updated._id,
+      }).catch((extractErr) => {
+        console.error(
+          `[CaseExtraction] Background doc extraction error for doc=${documentId}:`,
+          extractErr.message
+        );
+      });
 
       return updated;
     }

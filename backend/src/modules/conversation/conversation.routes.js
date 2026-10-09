@@ -13,6 +13,16 @@ import {
 } from './conversation.validator.js';
 import { authenticateUser } from '../../middleware/authMiddleware.js';
 import documentRoutes from '../document/document.routes.js';
+import {
+  createCaseHandler,
+  getCaseByConversationHandler,
+  extractCaseHandler,
+  extractDocumentCaseHandler,
+} from '../case/case.controller.js';
+import {
+  validateConversationIdParam,
+  validateDocumentAndConversationParams,
+} from '../case/case.validator.js';
 
 const router = Router();
 
@@ -21,6 +31,20 @@ router.use(authenticateUser);
 
 // Mount document sub-resource router
 router.use('/:conversationId/documents', documentRoutes);
+
+// Mount conversation structured case endpoints
+router
+  .route('/:conversationId/case')
+  .get(validateConversationIdParam, getCaseByConversationHandler)
+  .post(validateConversationIdParam, createCaseHandler);
+
+router
+  .route('/:conversationId/case/extract')
+  .post(validateConversationIdParam, extractCaseHandler);
+
+router
+  .route('/:conversationId/case/documents/:documentId/extract')
+  .post(validateDocumentAndConversationParams, extractDocumentCaseHandler);
 
 router
   .route('/')
