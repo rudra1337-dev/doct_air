@@ -344,6 +344,10 @@ const discrepancyItemSchema = new mongoose.Schema(
       default: null,
       maxlength: [500, 'Previous value cannot exceed 500 characters'],
     },
+    previousSource: {
+      type: sourceAttributionSchema,
+      default: null,
+    },
     newValue: {
       type: String,
       required: [true, 'New value is required'],

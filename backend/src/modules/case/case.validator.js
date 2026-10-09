@@ -121,6 +121,40 @@ export const validateUpdateCase = [
     .isArray()
     .withMessage('Vitals must be an array'),
 
+  body('onset.value')
+    .optional()
+    .isString()
+    .isLength({ max: 200 })
+    .withMessage('Onset description cannot exceed 200 characters'),
+
+  body('duration.value')
+    .optional()
+    .isString()
+    .isLength({ max: 200 })
+    .withMessage('Duration description cannot exceed 200 characters'),
+
+  body('severity.value')
+    .optional()
+    .isString()
+    .isLength({ max: 100 })
+    .withMessage('Severity description cannot exceed 100 characters'),
+
+  body('symptomLocation.value')
+    .optional()
+    .isString()
+    .isLength({ max: 200 })
+    .withMessage('Symptom location description cannot exceed 200 characters'),
+
+  body('relevantMedicalHistory')
+    .optional()
+    .isArray()
+    .withMessage('Relevant medical history must be an array'),
+
+  body('associatedSymptoms')
+    .optional()
+    .isArray()
+    .withMessage('Associated symptoms must be an array'),
+
   validate,
 ];
 

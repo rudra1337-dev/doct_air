@@ -298,10 +298,37 @@ export const updateCaseStatus = async ({ caseId, userId, userRole, status }) => 
   return caseRepo.updateCaseById(caseId, { status });
 };
 
+/**
+ * Lists structured cases accessible to the authenticated user.
+ * Patients only see their own cases; Clinicians/Admins see all cases (optionally filtered by status).
+ *
+ * @param {Object} params
+ * @param {string} params.userId
+ * @param {string} params.userRole
+ * @param {string|null} [params.status=null]
+ * @param {number} [params.limit=50]
+ * @returns {Promise<Array>} Cases list
+ */
+export const listCases = async ({ userId, userRole, status = null, limit = 50 }) => {
+  const query = {};
+  if (status && VALID_STATUSES.includes(status)) {
+    query.status = status;
+  }
+
+  if (userRole === 'PATIENT') {
+    query.patientId = userId;
+    return caseRepo.findCasesByPatientId(userId, { limit });
+  }
+
+  // Clinician or Admin
+  return caseRepo.findAllCases(query, { limit });
+};
+
 export default {
   createOrInitializeCase,
   getCaseByConversationId,
   getCaseById,
   updateCase,
   updateCaseStatus,
+  listCases,
 };

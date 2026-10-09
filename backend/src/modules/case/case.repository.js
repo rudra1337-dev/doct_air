@@ -24,6 +24,10 @@ export const findCasesByPatientId = async (patientId, { limit = 50, sort = { upd
   return Case.find({ patientId }).sort(sort).limit(limit);
 };
 
+export const findAllCases = async (query = {}, { limit = 50, sort = { updatedAt: -1 } } = {}) => {
+  return Case.find(query).sort(sort).limit(limit);
+};
+
 export const updateCaseById = async (id, updateData) => {
   return Case.findByIdAndUpdate(
     id,
@@ -42,6 +46,7 @@ export default {
   findCaseByConversationId,
   findCaseByIdAndPatientId,
   findCasesByPatientId,
+  findAllCases,
   updateCaseById,
   deleteCaseById,
 };

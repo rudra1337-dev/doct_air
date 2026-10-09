@@ -383,11 +383,17 @@ test('Step 4.2 & Step 4.3: Structured Clinical Extraction and Safe Merge Test Su
     assert.ok(durationDisc);
     assert.equal(durationDisc.previousValue, '3 days');
     assert.equal(durationDisc.newValue, '2 weeks ago');
+    assert.ok(durationDisc.previousSource);
+    assert.equal(durationDisc.previousSource.sourceType, 'patient_report');
+    assert.ok(durationDisc.source);
+    assert.equal(durationDisc.source.sourceType, 'patient_report');
 
     const severityDisc = updatedCase.discrepancies.find((d) => d.field === 'severity');
     assert.ok(severityDisc);
     assert.equal(severityDisc.previousValue, 'moderate');
     assert.equal(severityDisc.newValue, 'severe');
+    assert.ok(severityDisc.previousSource);
+    assert.equal(severityDisc.previousSource.sourceType, 'patient_report');
   });
 
   // ── 9. Strict Idempotency Check ──────────────────────────────────────────

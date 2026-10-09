@@ -163,10 +163,34 @@ export const extractDocumentCaseHandler = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @route   GET /api/cases
+ * @desc    List structured cases accessible to the authenticated user
+ * @access  Private
+ */
+export const listCasesHandler = asyncHandler(async (req, res) => {
+  const userId = req.user._id || req.user.id;
+  const userRole = req.user.role;
+  const { status, limit } = req.query;
+
+  const cases = await caseService.listCases({
+    userId,
+    userRole,
+    status,
+    limit: limit ? parseInt(limit, 10) : 50,
+  });
+
+  res.status(200).json({
+    success: true,
+    cases,
+  });
+});
+
 export default {
   createCaseHandler,
   getCaseHandler,
   getCaseByConversationHandler,
+  listCasesHandler,
   updateCaseHandler,
   updateCaseStatusHandler,
   extractCaseHandler,
