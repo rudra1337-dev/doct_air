@@ -57,6 +57,7 @@ apiClient.interceptors.response.use(
  */
 export const apiGet = (path, config = {}) => apiClient.get(path, config);
 export const apiPost = (path, body, config = {}) => apiClient.post(path, body, config);
+export const apiPatch = (path, body, config = {}) => apiClient.patch(path, body, config);
 export const apiPut = (path, body, config = {}) => apiClient.put(path, body, config);
 export const apiDelete = (path, config = {}) => apiClient.delete(path, config);
 

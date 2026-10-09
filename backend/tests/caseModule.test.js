@@ -446,4 +446,42 @@ test('Case Module & Structured Medical Case Foundation Test Suite', async (t) =>
     const body3 = await res3.json();
     assert.equal(body3.case.status, 'reviewed');
   });
+
+  // 13. Listing cases with role-based scoping
+  await t.test('13. GET /api/cases lists cases with strict patient isolation and professional scope', async () => {
+    // 1. Unauthenticated request is rejected with 401
+    const resUnauth = await fetch(`${baseUrl}/cases`);
+    assert.equal(resUnauth.status, 401);
+
+    // 2. Patient A retrieves their cases: receives Case A
+    const resPatientA = await fetch(`${baseUrl}/cases`, {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    assert.equal(resPatientA.status, 200);
+    const bodyA = await resPatientA.json();
+    assert.equal(bodyA.success, true);
+    assert.ok(Array.isArray(bodyA.cases));
+    assert.ok(bodyA.cases.length >= 1);
+    assert.ok(bodyA.cases.every((c) => c.patientId === patientA._id.toString()));
+
+    // 3. Patient B retrieves their cases: Patient A's case is NEVER returned
+    const resPatientB = await fetch(`${baseUrl}/cases`, {
+      headers: { Authorization: `Bearer ${tokenB}` },
+    });
+    assert.equal(resPatientB.status, 200);
+    const bodyB = await resPatientB.json();
+    assert.equal(bodyB.success, true);
+    assert.ok(Array.isArray(bodyB.cases));
+    assert.ok(!bodyB.cases.some((c) => c.id === createdCaseId));
+
+    // 4. Clinician retrieves cases: receives all cases including Case A
+    const resClinician = await fetch(`${baseUrl}/cases`, {
+      headers: { Authorization: `Bearer ${tokenDoctor}` },
+    });
+    assert.equal(resClinician.status, 200);
+    const bodyDoc = await resClinician.json();
+    assert.equal(bodyDoc.success, true);
+    assert.ok(Array.isArray(bodyDoc.cases));
+    assert.ok(bodyDoc.cases.some((c) => c.id === createdCaseId));
+  });
 });

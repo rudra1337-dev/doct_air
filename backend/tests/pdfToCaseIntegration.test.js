@@ -464,6 +464,9 @@ test('Step 4.4 & Step 4.5: PDF-to-Case Integration and End-to-End Workflow Test 
     // Competing claim preserved in discrepancies with document attribution
     const discrepancy = updatedCase.discrepancies.find((d) => d.field === 'duration');
     assert.ok(discrepancy);
+    assert.equal(discrepancy.previousValue, '2 weeks');
+    assert.ok(discrepancy.previousSource);
+    assert.equal(discrepancy.previousSource.sourceType, 'patient_report');
     assert.equal(discrepancy.newValue, '3 months');
     assert.equal(discrepancy.source.sourceType, 'document');
     assert.equal(discrepancy.source.sourceId, docDischarge._id.toString());

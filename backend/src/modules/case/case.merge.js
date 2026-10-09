@@ -85,6 +85,7 @@ export const mergeExtractedDataIntoCase = (
       caseDoc.discrepancies.push({
         field,
         previousValue: existingVal.trim(),
+        previousSource: existingFieldObj?.source || null,
         newValue: candidateVal.trim(),
         source: candidateFieldObj.source || null,
         recordedAt: new Date(),
@@ -132,6 +133,7 @@ export const mergeExtractedDataIntoCase = (
           caseDoc.discrepancies.push({
             field: `symptom.${existing.name}.severity`,
             previousValue: existing.severity,
+            previousSource: existing.source || null,
             newValue: candSym.severity,
             source: candSym.source || null,
             recordedAt: new Date(),

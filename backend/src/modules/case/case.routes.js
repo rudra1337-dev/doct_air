@@ -3,6 +3,7 @@ import {
   createCaseHandler,
   getCaseHandler,
   getCaseByConversationHandler,
+  listCasesHandler,
   updateCaseHandler,
   updateCaseStatusHandler,
   extractCaseHandler,
@@ -25,6 +26,7 @@ router.use(authenticateUser);
 
 router
   .route('/')
+  .get(listCasesHandler)
   .post(validateCreateCase, createCaseHandler);
 
 router

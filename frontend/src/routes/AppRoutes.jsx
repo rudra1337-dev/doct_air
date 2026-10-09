@@ -27,6 +27,9 @@ const ProfessionalQueue = lazy(() => import('../pages/professional/ProfessionalQ
 const ProfessionalCases = lazy(() => import('../pages/professional/ProfessionalCases/ProfessionalCases'));
 const ProfessionalProfile = lazy(() => import('../pages/professional/ProfessionalProfile/ProfessionalProfile'));
 
+// Lazy-loaded structured case review view
+const CaseReviewPage = lazy(() => import('../pages/case/CaseReview/CaseReviewPage'));
+
 /**
  * Route wrapper that redirects already-authenticated users directly to their workspace
  */
@@ -97,6 +100,9 @@ export default function AppRoutes() {
           <Route path="consultation" element={<PatientConsultation />} />
           <Route path="consultation/:conversationId" element={<PatientConsultation />} />
           <Route path="cases" element={<PatientCases />} />
+          <Route path="cases/:caseId" element={<CaseReviewPage role="patient" />} />
+          <Route path="cases/conversation/:conversationId" element={<CaseReviewPage role="patient" />} />
+          <Route path="consultation/:conversationId/case" element={<CaseReviewPage role="patient" />} />
           <Route path="profile" element={<PatientProfile />} />
         </Route>
 
@@ -115,6 +121,8 @@ export default function AppRoutes() {
           <Route path="dashboard" element={<ProfessionalDashboard />} />
           <Route path="queue" element={<ProfessionalQueue />} />
           <Route path="cases" element={<ProfessionalCases />} />
+          <Route path="cases/:caseId" element={<CaseReviewPage role="professional" />} />
+          <Route path="cases/conversation/:conversationId" element={<CaseReviewPage role="professional" />} />
           <Route path="profile" element={<ProfessionalProfile />} />
         </Route>
 
