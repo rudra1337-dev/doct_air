@@ -4,6 +4,7 @@ import { useAuth } from '../../../context/AuthContext';
 import caseService from '../../../services/caseService';
 import documentService from '../../../services/documentService';
 import CaseOverviewCard from './components/CaseOverviewCard';
+import CaseCompletenessCard from './components/CaseCompletenessCard';
 import CaseSymptomsCard from './components/CaseSymptomsCard';
 import CaseMedicalBackgroundCard from './components/CaseMedicalBackgroundCard';
 import CaseFindingsCard from './components/CaseFindingsCard';
@@ -341,7 +342,15 @@ export default function CaseReviewPage({ role = 'patient' }) {
             onOpenEdit={() => setIsEditModalOpen(true)}
           />
 
-          {/* Section B: Symptoms & Complaints */}
+          {/* Section B: Case Completeness & Intake Readiness */}
+          <CaseCompletenessCard
+            completeness={caseData.completeness}
+            caseData={caseData}
+            userRole={userRole}
+            onOpenEdit={() => setIsEditModalOpen(true)}
+          />
+
+          {/* Section C: Symptoms & Complaints */}
           <CaseSymptomsCard
             caseData={caseData}
             onOpenEdit={() => setIsEditModalOpen(true)}

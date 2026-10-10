@@ -86,6 +86,43 @@ export const caseService = {
    */
   extractFromDocument: (conversationId, documentId) =>
     apiPost(`/conversations/${conversationId}/case/documents/${documentId}/extract`),
+
+  /**
+   * Retrieve case completeness and missing information assessment
+   *
+   * @param {string} caseId
+   * @returns {Promise<{ success: boolean, caseId: string, completeness: Object }>}
+   */
+  getCaseCompleteness: (caseId) =>
+    apiGet(`/cases/${caseId}/completeness`),
+
+  /**
+   * Retrieve follow-up question status for a conversation (Step 6.2)
+   *
+   * @param {string} conversationId
+   * @returns {Promise<{ success: boolean, needed: boolean, activeQuestion: Object, nextQuestion: Object, completeness: Object }>}
+   */
+  getFollowUpStatus: (conversationId) =>
+    apiGet(`/cases/conversation/${conversationId}/follow-up`),
+
+  /**
+   * Idempotently ask or retrieve the next follow-up question (Step 6.2)
+   *
+   * @param {string} conversationId
+   * @returns {Promise<{ success: boolean, needed: boolean, question: Object, message: Object, completeness: Object }>}
+   */
+  askFollowUpQuestion: (conversationId) =>
+    apiPost(`/cases/conversation/${conversationId}/follow-up/ask`),
+
+  /**
+   * Integrate patient answer into follow-up question and structured case (Step 6.2)
+   *
+   * @param {string} conversationId
+   * @param {string} messageId
+   * @returns {Promise<{ success: boolean, case: Object, completeness: Object, answeredQuestion: Object, nextQuestion: Object }>}
+   */
+  integratePatientAnswer: (conversationId, messageId) =>
+    apiPost(`/cases/conversation/${conversationId}/follow-up/answer`, { messageId }),
 };
 
 export default caseService;

@@ -1,5 +1,26 @@
 import * as caseRepo from './case.repository.js';
 import * as conversationRepo from '../conversation/conversation.repository.js';
+import {
+  evaluateCaseCompleteness,
+  getCaseCompleteness,
+} from './case.completeness.service.js';
+import {
+  selectNextFollowUpQuestion,
+  getFollowUpStatus,
+  askOrGetFollowUpQuestion,
+  integratePatientAnswer,
+  didMessageResolveQuestion,
+} from './case.followUp.service.js';
+
+export {
+  evaluateCaseCompleteness,
+  getCaseCompleteness,
+  selectNextFollowUpQuestion,
+  getFollowUpStatus,
+  askOrGetFollowUpQuestion,
+  integratePatientAnswer,
+  didMessageResolveQuestion,
+};
 
 /**
  * Service layer for Structured Medical Case management, security boundaries, and data integrity.
@@ -246,10 +267,26 @@ export const updateCase = async ({ caseId, userId, userRole, updateData }) => {
 
   // Optional status update included in body
   if (updateData.status && VALID_STATUSES.includes(updateData.status)) {
-    if (userRole === 'PATIENT' && updateData.status === 'reviewed') {
-      const error = new Error('Only clinical professionals may mark a case as reviewed');
-      error.statusCode = 403;
-      throw error;
+    if (userRole === 'PATIENT') {
+      if (updateData.status === 'reviewed') {
+        const error = new Error('Only clinical professionals may mark a case as reviewed');
+        error.statusCode = 403;
+        throw error;
+      }
+      if (updateData.status === 'ready_for_review') {
+        const simulated = { ...(existingCase.toObject ? existingCase.toObject() : existingCase), ...safeUpdate };
+        const completeness = evaluateCaseCompleteness(simulated);
+        if (!completeness.canSubmitForReview) {
+          const missingLabels = completeness.missingRequiredInformation
+            .map((m) => m.label)
+            .join(', ');
+          const error = new Error(
+            `Cannot submit case for review: required clinical intake information is missing (${missingLabels})`
+          );
+          error.statusCode = 400;
+          throw error;
+        }
+      }
     }
     safeUpdate.status = updateData.status;
   }
@@ -293,6 +330,20 @@ export const updateCaseStatus = async ({ caseId, userId, userRole, status }) => 
       error.statusCode = 403;
       throw error;
     }
+
+    if (status === 'ready_for_review') {
+      const completeness = evaluateCaseCompleteness(existingCase);
+      if (!completeness.canSubmitForReview) {
+        const missingLabels = completeness.missingRequiredInformation
+          .map((m) => m.label)
+          .join(', ');
+        const error = new Error(
+          `Cannot submit case for review: required clinical intake information is missing (${missingLabels})`
+        );
+        error.statusCode = 400;
+        throw error;
+      }
+    }
   }
 
   return caseRepo.updateCaseById(caseId, { status });
@@ -331,4 +382,10 @@ export default {
   updateCase,
   updateCaseStatus,
   listCases,
+  evaluateCaseCompleteness,
+  getCaseCompleteness,
+  selectNextFollowUpQuestion,
+  getFollowUpStatus,
+  askOrGetFollowUpQuestion,
+  integratePatientAnswer,
 };
