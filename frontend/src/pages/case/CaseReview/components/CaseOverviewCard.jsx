@@ -95,6 +95,24 @@ export default function CaseOverviewCard({
             </button>
           )}
 
+          {/* Medical Intake Report Link */}
+          {(caseData?.id || caseData?._id) && (
+            <Link
+              to={
+                isPatient
+                  ? `/patient/cases/${caseData?.id || caseData?._id}/report`
+                  : `/professional/cases/${caseData?.id || caseData?._id}/report`
+              }
+              className="btn-case-report"
+              title="View In-App Medical Intake Report"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.5L19 7.5V19a2 2 0 0 1-2 2z" />
+              </svg>
+              <span>Medical Report</span>
+            </Link>
+          )}
+
           {conversationId && (
             <Link
               to={consultationUrl}

@@ -123,6 +123,42 @@ export const caseService = {
    */
   integratePatientAnswer: (conversationId, messageId) =>
     apiPost(`/cases/conversation/${conversationId}/follow-up/answer`, { messageId }),
+
+  /**
+   * Retrieve the latest Medical Intake Report for a conversation
+   *
+   * @param {string} conversationId
+   * @returns {Promise<{ success: boolean, report: Object }>}
+   */
+  getReportByConversation: (conversationId) =>
+    apiGet(`/cases/conversation/${conversationId}/report`),
+
+  /**
+   * Retrieve the latest Medical Intake Report by case ID
+   *
+   * @param {string} caseId
+   * @returns {Promise<{ success: boolean, report: Object }>}
+   */
+  getReportByCaseId: (caseId) =>
+    apiGet(`/cases/${caseId}/report`),
+
+  /**
+   * Generate or regenerate a versioned Medical Intake Report for a conversation
+   *
+   * @param {string} conversationId
+   * @returns {Promise<{ success: boolean, report: Object }>}
+   */
+  generateReport: (conversationId) =>
+    apiPost(`/cases/conversation/${conversationId}/report/generate`, {}),
+
+  /**
+   * Generate or regenerate a versioned Medical Intake Report by case ID
+   *
+   * @param {string} caseId
+   * @returns {Promise<{ success: boolean, report: Object }>}
+   */
+  generateReportByCaseId: (caseId) =>
+    apiPost(`/cases/${caseId}/report/generate`, {}),
 };
 
 export default caseService;
