@@ -1023,6 +1023,7 @@
 }
 
 .btn-case-consultation,
+.btn-case-report,
 .btn-case-provide-info {
   display: inline-flex;
   align-items: center;
@@ -1039,6 +1040,7 @@
 }
 
 .btn-case-consultation:hover,
+.btn-case-report:hover,
 .btn-case-provide-info:hover {
   background: rgba(14, 165, 233, 0.12);
   border-color: rgba(14, 165, 233, 0.3);

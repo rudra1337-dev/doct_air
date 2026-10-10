@@ -1,6 +1,8 @@
 export { default as Case } from './models/Case.js';
+export { default as MedicalReport } from './models/MedicalReport.js';
 export * as caseRepository from './case.repository.js';
 export * as caseService from './case.service.js';
+export * as caseReportService from './case.report.service.js';
 export * as caseController from './case.controller.js';
 export { default as caseRoutes } from './case.routes.js';
 export * as caseValidator from './case.validator.js';

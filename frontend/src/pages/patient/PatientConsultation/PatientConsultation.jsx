@@ -646,6 +646,20 @@ export default function PatientConsultation() {
               </Link>
             )}
 
+            {/* View Medical Intake Report Link */}
+            {conversationId && (
+              <Link
+                to={`/patient/consultation/${conversationId}/report`}
+                className="chat-main__case-link"
+                title="View In-App Medical Intake Report for this consultation"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.5L19 7.5V19a2 2 0 0 1-2 2z" />
+                </svg>
+                <span>Medical Report</span>
+              </Link>
+            )}
+
             {/* Intake Completeness Badge */}
             {followUpInfo?.completeness && (
               <div

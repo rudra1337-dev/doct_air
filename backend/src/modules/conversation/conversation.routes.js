@@ -21,6 +21,9 @@ import {
   getFollowUpStatusHandler,
   askFollowUpQuestionHandler,
   answerFollowUpQuestionHandler,
+  generateReportHandler,
+  getReportByConversationHandler,
+  getReportByVersionHandler,
 } from '../case/case.controller.js';
 import {
   validateConversationIdParam,
@@ -60,6 +63,19 @@ router
 router
   .route('/:conversationId/case/documents/:documentId/extract')
   .post(validateDocumentAndConversationParams, extractDocumentCaseHandler);
+
+// ── Conversation Medical Intake Report Endpoints ───────────────────────────
+router
+  .route('/:conversationId/case/report')
+  .get(validateConversationIdParam, getReportByConversationHandler);
+
+router
+  .route('/:conversationId/case/report/generate')
+  .post(validateConversationIdParam, generateReportHandler);
+
+router
+  .route('/:conversationId/case/report/version/:version')
+  .get(validateConversationIdParam, getReportByVersionHandler);
 
 router
   .route('/')

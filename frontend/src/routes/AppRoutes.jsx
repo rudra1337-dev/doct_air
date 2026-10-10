@@ -30,6 +30,9 @@ const ProfessionalProfile = lazy(() => import('../pages/professional/Professiona
 // Lazy-loaded structured case review view
 const CaseReviewPage = lazy(() => import('../pages/case/CaseReview/CaseReviewPage'));
 
+// Lazy-loaded medical intake report view
+const MedicalReportPage = lazy(() => import('../pages/case/MedicalReport/MedicalReportPage'));
+
 /**
  * Route wrapper that redirects already-authenticated users directly to their workspace
  */
@@ -101,8 +104,11 @@ export default function AppRoutes() {
           <Route path="consultation/:conversationId" element={<PatientConsultation />} />
           <Route path="cases" element={<PatientCases />} />
           <Route path="cases/:caseId" element={<CaseReviewPage role="patient" />} />
+          <Route path="cases/:caseId/report" element={<MedicalReportPage role="patient" />} />
           <Route path="cases/conversation/:conversationId" element={<CaseReviewPage role="patient" />} />
+          <Route path="cases/conversation/:conversationId/report" element={<MedicalReportPage role="patient" />} />
           <Route path="consultation/:conversationId/case" element={<CaseReviewPage role="patient" />} />
+          <Route path="consultation/:conversationId/report" element={<MedicalReportPage role="patient" />} />
           <Route path="profile" element={<PatientProfile />} />
         </Route>
 
@@ -122,7 +128,9 @@ export default function AppRoutes() {
           <Route path="queue" element={<ProfessionalQueue />} />
           <Route path="cases" element={<ProfessionalCases />} />
           <Route path="cases/:caseId" element={<CaseReviewPage role="professional" />} />
+          <Route path="cases/:caseId/report" element={<MedicalReportPage role="professional" />} />
           <Route path="cases/conversation/:conversationId" element={<CaseReviewPage role="professional" />} />
+          <Route path="cases/conversation/:conversationId/report" element={<MedicalReportPage role="professional" />} />
           <Route path="profile" element={<ProfessionalProfile />} />
         </Route>
 

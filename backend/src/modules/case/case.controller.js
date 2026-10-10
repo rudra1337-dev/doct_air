@@ -1,6 +1,7 @@
 import asyncHandler from '../../utils/asyncHandler.js';
 import * as caseService from './case.service.js';
 import * as caseExtractionService from './case.extraction.service.js';
+import * as caseReportService from './case.report.service.js';
 
 /**
  * @route   POST /api/cases OR POST /api/conversations/:conversationId/case
@@ -298,6 +299,104 @@ export const answerFollowUpQuestionHandler = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @route   POST /api/cases/conversation/:conversationId/report/generate OR POST /api/cases/:id/report/generate
+ * @desc    Generate or regenerate a versioned Medical Intake Report for a consultation or case
+ * @access  Private (Authorized Patient owner or Clinician)
+ */
+export const generateReportHandler = asyncHandler(async (req, res) => {
+  const userId = req.user._id || req.user.id;
+  const userRole = req.user.role;
+  let conversationId = req.params.conversationId;
+
+  if (!conversationId && req.params.id) {
+    const caseDoc = await caseService.getCaseById({
+      caseId: req.params.id,
+      userId,
+      userRole,
+    });
+    conversationId = caseDoc.conversationId.toString();
+  }
+
+  const report = await caseReportService.generateOrRegenerateReport({
+    conversationId,
+    userId,
+    userRole,
+  });
+
+  res.status(201).json({
+    success: true,
+    report,
+  });
+});
+
+/**
+ * @route   GET /api/cases/conversation/:conversationId/report OR GET /api/conversations/:conversationId/case/report
+ * @desc    Get the latest Medical Intake Report for a conversation
+ * @access  Private (Authorized Patient owner or Clinician)
+ */
+export const getReportByConversationHandler = asyncHandler(async (req, res) => {
+  const userId = req.user._id || req.user.id;
+  const userRole = req.user.role;
+  const { conversationId } = req.params;
+
+  const report = await caseReportService.getLatestReportByConversation({
+    conversationId,
+    userId,
+    userRole,
+  });
+
+  res.status(200).json({
+    success: true,
+    report,
+  });
+});
+
+/**
+ * @route   GET /api/cases/:id/report
+ * @desc    Get the latest Medical Intake Report by case ID
+ * @access  Private (Authorized Patient owner or Clinician)
+ */
+export const getReportByCaseHandler = asyncHandler(async (req, res) => {
+  const userId = req.user._id || req.user.id;
+  const userRole = req.user.role;
+  const { id: caseId } = req.params;
+
+  const report = await caseReportService.getLatestReportByCaseId({
+    caseId,
+    userId,
+    userRole,
+  });
+
+  res.status(200).json({
+    success: true,
+    report,
+  });
+});
+
+/**
+ * @route   GET /api/cases/conversation/:conversationId/report/version/:version
+ * @desc    Get a specific version of a Medical Intake Report
+ * @access  Private (Authorized Patient owner or Clinician)
+ */
+export const getReportByVersionHandler = asyncHandler(async (req, res) => {
+  const userId = req.user._id || req.user.id;
+  const userRole = req.user.role;
+  const { conversationId, version } = req.params;
+
+  const report = await caseReportService.getReportByVersion({
+    conversationId,
+    version,
+    userId,
+    userRole,
+  });
+
+  res.status(200).json({
+    success: true,
+    report,
+  });
+});
+
 export default {
   createCaseHandler,
   getCaseHandler,
@@ -311,4 +410,8 @@ export default {
   updateCaseStatusHandler,
   extractCaseHandler,
   extractDocumentCaseHandler,
+  generateReportHandler,
+  getReportByConversationHandler,
+  getReportByCaseHandler,
+  getReportByVersionHandler,
 };
