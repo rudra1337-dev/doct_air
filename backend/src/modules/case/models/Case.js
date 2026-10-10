@@ -367,6 +367,80 @@ const discrepancyItemSchema = new mongoose.Schema(
 );
 
 /**
+ * Follow-up Question sub-schema (Step 6.2)
+ * Tracks context-aware follow-up questions asked to the patient to complete clinical intake.
+ */
+const followUpQuestionSchema = new mongoose.Schema(
+  {
+    questionKey: {
+      type: String,
+      required: [true, 'Question key is required'],
+      trim: true,
+      maxlength: [100, 'Question key cannot exceed 100 characters'],
+    },
+    targetField: {
+      type: String,
+      required: [true, 'Target field is required'],
+      trim: true,
+      maxlength: [100, 'Target field cannot exceed 100 characters'],
+    },
+    category: {
+      type: String,
+      enum: {
+        values: ['required', 'incomplete', 'discrepancy', 'optional'],
+        message: '{VALUE} is not a valid question category',
+      },
+      default: 'required',
+    },
+    questionText: {
+      type: String,
+      required: [true, 'Question text is required'],
+      trim: true,
+      maxlength: [1000, 'Question text cannot exceed 1000 characters'],
+    },
+    rationale: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Rationale cannot exceed 500 characters'],
+      default: null,
+    },
+    status: {
+      type: String,
+      enum: {
+        values: ['asked', 'answered', 'ambiguous', 'no_longer_relevant'],
+        message: '{VALUE} is not a valid follow-up question status',
+      },
+      default: 'asked',
+    },
+    messageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Message',
+      default: null,
+    },
+    answerMessageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Message',
+      default: null,
+    },
+    answerText: {
+      type: String,
+      trim: true,
+      maxlength: [2000, 'Answer text cannot exceed 2000 characters'],
+      default: null,
+    },
+    askedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    answeredAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  { _id: true }
+);
+
+/**
  * Primary Medical Case Schema
  *
  * Stores structured, evolving clinical information gathered during an existing conversation.
@@ -551,6 +625,11 @@ const caseSchema = new mongoose.Schema(
       default: [],
       index: true,
     },
+
+    followUpQuestions: {
+      type: [followUpQuestionSchema],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -576,6 +655,18 @@ caseSchema.set('toJSON', {
       ret.processedDocumentIds = ret.processedDocumentIds.map((id) =>
         id ? id.toString() : id
       );
+    }
+    if (Array.isArray(ret.followUpQuestions)) {
+      ret.followUpQuestions = ret.followUpQuestions.map((fq) => {
+        const item = { ...fq };
+        if (item._id) {
+          item.id = item._id.toString();
+          delete item._id;
+        }
+        if (item.messageId) item.messageId = item.messageId.toString();
+        if (item.answerMessageId) item.answerMessageId = item.answerMessageId.toString();
+        return item;
+      });
     }
     delete ret._id;
     delete ret.__v;

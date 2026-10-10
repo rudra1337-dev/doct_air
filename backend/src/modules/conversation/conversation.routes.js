@@ -18,6 +18,9 @@ import {
   getCaseByConversationHandler,
   extractCaseHandler,
   extractDocumentCaseHandler,
+  getFollowUpStatusHandler,
+  askFollowUpQuestionHandler,
+  answerFollowUpQuestionHandler,
 } from '../case/case.controller.js';
 import {
   validateConversationIdParam,
@@ -37,6 +40,18 @@ router
   .route('/:conversationId/case')
   .get(validateConversationIdParam, getCaseByConversationHandler)
   .post(validateConversationIdParam, createCaseHandler);
+
+router
+  .route('/:conversationId/case/follow-up')
+  .get(validateConversationIdParam, getFollowUpStatusHandler);
+
+router
+  .route('/:conversationId/case/follow-up/ask')
+  .post(validateConversationIdParam, askFollowUpQuestionHandler);
+
+router
+  .route('/:conversationId/case/follow-up/answer')
+  .post(validateConversationIdParam, answerFollowUpQuestionHandler);
 
 router
   .route('/:conversationId/case/extract')

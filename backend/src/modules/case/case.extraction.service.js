@@ -3,6 +3,7 @@ import * as documentRepo from '../document/document.repository.js';
 import * as caseService from './case.service.js';
 import * as caseExtractor from './case.extractor.js';
 import * as caseMerge from './case.merge.js';
+import { isFieldSatisfied, didMessageResolveQuestion } from './case.followUp.service.js';
 import { isGeminiConfigured } from '../ai/gemini/gemini.config.js';
 const isTestEnv = () =>
   process.env.NODE_ENV === 'test' ||
@@ -120,10 +121,48 @@ export const extractAndMergeCaseForConversation = async ({
   }
 
   // 6. Safely merge and persist using optimistic concurrency retry
-  return caseMerge.saveCaseWithRetry(caseDoc, candidateData, targetMessage._id, {
+  const updatedCase = await caseMerge.saveCaseWithRetry(caseDoc, candidateData, targetMessage._id, {
     sourceType: 'patient_report',
     maxRetries: 3,
   });
+
+  // 7. Synchronize active follow-up questions
+  if (updatedCase && Array.isArray(updatedCase.followUpQuestions)) {
+    let fqModified = false;
+    for (const q of updatedCase.followUpQuestions) {
+      if (q.status === 'asked') {
+        const isResolved = didMessageResolveQuestion(
+          caseDoc,
+          updatedCase,
+          q.targetField,
+          targetMessage._id
+        );
+        if (isResolved) {
+          q.status = 'answered';
+          q.answeredAt = new Date();
+          q.answerMessageId = targetMessage._id;
+          q.answerText = targetMessage.content || '';
+          fqModified = true;
+        } else if (targetMessage.content && targetMessage.content.trim()) {
+          // Question was active and patient replied, but message did not resolve target field -> ambiguous
+          q.status = 'ambiguous';
+          q.answerMessageId = targetMessage._id;
+          q.answerText = targetMessage.content;
+          q.answeredAt = null;
+          fqModified = true;
+        }
+      }
+    }
+    if (fqModified) {
+      try {
+        await updatedCase.save();
+      } catch (_e) {
+        // Optimistic concurrency handled gracefully
+      }
+    }
+  }
+
+  return updatedCase;
 };
 
 /**
@@ -251,10 +290,32 @@ export const extractAndMergeCaseForDocument = async ({
   }
 
   // 7. Safely merge and persist with optimistic concurrency retry
-  return caseMerge.saveCaseWithRetry(caseDoc, candidateData, document._id, {
+  const updatedCase = await caseMerge.saveCaseWithRetry(caseDoc, candidateData, document._id, {
     sourceType: 'document',
     maxRetries: 3,
   });
+
+  // 8. Synchronize active follow-up questions if satisfied by document findings
+  if (updatedCase && Array.isArray(updatedCase.followUpQuestions)) {
+    let fqModified = false;
+    for (const q of updatedCase.followUpQuestions) {
+      if (q.status === 'asked' && isFieldSatisfied(updatedCase, q.targetField)) {
+        // Document findings satisfy the clinical requirement; transition to no_longer_relevant without claiming patient answer
+        q.status = 'no_longer_relevant';
+        q.rationale = `Information requirement satisfied by findings in document "${document.originalName || document._id}"`;
+        fqModified = true;
+      }
+    }
+    if (fqModified) {
+      try {
+        await updatedCase.save();
+      } catch (_e) {
+        // Optimistic concurrency handled gracefully
+      }
+    }
+  }
+
+  return updatedCase;
 };
 
 export default {

@@ -19,9 +19,12 @@ export const createCaseHandler = asyncHandler(async (req, res) => {
     initialData: req.body,
   });
 
+  const jsonCase = caseDoc?.toJSON ? caseDoc.toJSON() : { ...caseDoc };
+  jsonCase.completeness = caseService.evaluateCaseCompleteness(caseDoc);
+
   res.status(201).json({
     success: true,
-    case: caseDoc,
+    case: jsonCase,
   });
 });
 
@@ -41,9 +44,12 @@ export const getCaseHandler = asyncHandler(async (req, res) => {
     userRole,
   });
 
+  const jsonCase = caseDoc?.toJSON ? caseDoc.toJSON() : { ...caseDoc };
+  jsonCase.completeness = caseService.evaluateCaseCompleteness(caseDoc);
+
   res.status(200).json({
     success: true,
-    case: caseDoc,
+    case: jsonCase,
   });
 });
 
@@ -63,9 +69,12 @@ export const getCaseByConversationHandler = asyncHandler(async (req, res) => {
     userRole,
   });
 
+  const jsonCase = caseDoc?.toJSON ? caseDoc.toJSON() : { ...caseDoc };
+  jsonCase.completeness = caseService.evaluateCaseCompleteness(caseDoc);
+
   res.status(200).json({
     success: true,
-    case: caseDoc,
+    case: jsonCase,
   });
 });
 
@@ -86,9 +95,12 @@ export const updateCaseHandler = asyncHandler(async (req, res) => {
     updateData: req.body,
   });
 
+  const jsonCase = updatedCase?.toJSON ? updatedCase.toJSON() : { ...updatedCase };
+  jsonCase.completeness = caseService.evaluateCaseCompleteness(updatedCase);
+
   res.status(200).json({
     success: true,
-    case: updatedCase,
+    case: jsonCase,
   });
 });
 
@@ -110,9 +122,12 @@ export const updateCaseStatusHandler = asyncHandler(async (req, res) => {
     status,
   });
 
+  const jsonCase = updatedCase?.toJSON ? updatedCase.toJSON() : { ...updatedCase };
+  jsonCase.completeness = caseService.evaluateCaseCompleteness(updatedCase);
+
   res.status(200).json({
     success: true,
-    case: updatedCase,
+    case: jsonCase,
   });
 });
 
@@ -134,9 +149,12 @@ export const extractCaseHandler = asyncHandler(async (req, res) => {
     messageId,
   });
 
+  const jsonCase = updatedCase?.toJSON ? updatedCase.toJSON() : { ...updatedCase };
+  jsonCase.completeness = caseService.evaluateCaseCompleteness(updatedCase);
+
   res.status(200).json({
     success: true,
-    case: updatedCase,
+    case: jsonCase,
   });
 });
 
@@ -157,9 +175,12 @@ export const extractDocumentCaseHandler = asyncHandler(async (req, res) => {
     documentId,
   });
 
+  const jsonCase = updatedCase?.toJSON ? updatedCase.toJSON() : { ...updatedCase };
+  jsonCase.completeness = caseService.evaluateCaseCompleteness(updatedCase);
+
   res.status(200).json({
     success: true,
-    case: updatedCase,
+    case: jsonCase,
   });
 });
 
@@ -186,11 +207,106 @@ export const listCasesHandler = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @route   GET /api/cases/:id/completeness
+ * @desc    Get completeness and missing information evaluation for a case
+ * @access  Private (Authorized Patient owner or Clinician)
+ */
+export const getCaseCompletenessHandler = asyncHandler(async (req, res) => {
+  const userId = req.user._id || req.user.id;
+  const userRole = req.user.role;
+  const { id: caseId } = req.params;
+
+  const result = await caseService.getCaseCompleteness({
+    caseId,
+    userId,
+    userRole,
+  });
+
+  res.status(200).json({
+    success: true,
+    caseId: result.caseId,
+    completeness: result.completeness,
+  });
+});
+
+/**
+ * @route   GET /api/cases/conversation/:conversationId/follow-up
+ * @desc    Get current follow-up question status for a conversation
+ * @access  Private (Authorized Patient owner or Clinician)
+ */
+export const getFollowUpStatusHandler = asyncHandler(async (req, res) => {
+  const userId = req.user._id || req.user.id;
+  const userRole = req.user.role;
+  const { conversationId } = req.params;
+
+  const result = await caseService.getFollowUpStatus({
+    conversationId,
+    userId,
+    userRole,
+  });
+
+  res.status(200).json({
+    success: true,
+    ...result,
+  });
+});
+
+/**
+ * @route   POST /api/cases/conversation/:conversationId/follow-up/ask
+ * @desc    Idempotently ask or retrieve the next follow-up question
+ * @access  Private (Authorized Patient owner or Clinician)
+ */
+export const askFollowUpQuestionHandler = asyncHandler(async (req, res) => {
+  const userId = req.user._id || req.user.id;
+  const userRole = req.user.role;
+  const { conversationId } = req.params;
+
+  const result = await caseService.askOrGetFollowUpQuestion({
+    conversationId,
+    userId,
+    userRole,
+  });
+
+  res.status(200).json({
+    success: true,
+    ...result,
+  });
+});
+
+/**
+ * @route   POST /api/cases/conversation/:conversationId/follow-up/answer
+ * @desc    Integrate a patient answer to the active follow-up question
+ * @access  Private (Authorized Patient owner or Clinician)
+ */
+export const answerFollowUpQuestionHandler = asyncHandler(async (req, res) => {
+  const userId = req.user._id || req.user.id;
+  const userRole = req.user.role;
+  const { conversationId } = req.params;
+  const { messageId } = req.body;
+
+  const result = await caseService.integratePatientAnswer({
+    conversationId,
+    userId,
+    userRole,
+    messageId,
+  });
+
+  res.status(200).json({
+    success: true,
+    ...result,
+  });
+});
+
 export default {
   createCaseHandler,
   getCaseHandler,
   getCaseByConversationHandler,
   listCasesHandler,
+  getCaseCompletenessHandler,
+  getFollowUpStatusHandler,
+  askFollowUpQuestionHandler,
+  answerFollowUpQuestionHandler,
   updateCaseHandler,
   updateCaseStatusHandler,
   extractCaseHandler,

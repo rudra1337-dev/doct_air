@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import conversationService from '../../../services/conversationService';
 import documentService from '../../../services/documentService';
+import caseService from '../../../services/caseService';
 import ConversationSidebar from './components/ConversationSidebar';
 import ChatMessageList from './components/ChatMessageList';
 import ChatInput from './components/ChatInput';
@@ -38,6 +39,7 @@ export default function PatientConsultation() {
   const [messagesError, setMessagesError] = useState(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [input, setInput] = useState('');
+  const [followUpInfo, setFollowUpInfo] = useState(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [lastFailedPrompt, setLastFailedPrompt] = useState('');
@@ -169,6 +171,7 @@ export default function PatientConsultation() {
       setMessagesError(null);
       setDocuments([]);
       setDocumentError(null);
+      setFollowUpInfo(null);
       setIsLoadingMessages(false);
       return;
     }
@@ -212,6 +215,13 @@ export default function PatientConsultation() {
               })
             );
           }
+
+          // Load follow-up status for consultation
+          caseService.getFollowUpStatus(conversationId).then((fuRes) => {
+            if (!isCancelled && fuRes?.success) {
+              setFollowUpInfo(fuRes);
+            }
+          }).catch(() => {});
         }
       } catch (err) {
         if (!isCancelled) {
@@ -327,6 +337,7 @@ export default function PatientConsultation() {
     setMessagesError(null);
     setDocuments([]);
     setDocumentError(null);
+    setFollowUpInfo(null);
     clearDrafts();
     setInput('');
     navigate('/patient/consultation', { state: { explicitNew: true } });
@@ -507,6 +518,13 @@ export default function PatientConsultation() {
                 setDocuments(res.documents);
               }
             }).catch(() => {});
+
+            // Refresh follow-up question and completeness assessment
+            caseService.getFollowUpStatus(targetConvId).then((fuRes) => {
+              if (fuRes?.success) {
+                setFollowUpInfo(fuRes);
+              }
+            }).catch(() => {});
           }
         },
         onError: (_data) => {
@@ -628,6 +646,25 @@ export default function PatientConsultation() {
               </Link>
             )}
 
+            {/* Intake Completeness Badge */}
+            {followUpInfo?.completeness && (
+              <div
+                className={`chat-intake-badge ${
+                  followUpInfo.completeness.canSubmitForReview
+                    ? 'chat-intake-badge--ready'
+                    : 'chat-intake-badge--progress'
+                }`}
+                title={
+                  followUpInfo.completeness.canSubmitForReview
+                    ? 'Core clinical intake satisfied'
+                    : 'Clinical intake in progress'
+                }
+              >
+                <span className="chat-intake-badge-dot" aria-hidden="true" />
+                <span>Intake: {followUpInfo.completeness.completionPercentage}%</span>
+              </div>
+            )}
+
             <div className="chat-main__badge" title="Verified AI intake dialog active">
               <span className="chat-main__badge-dot" aria-hidden="true" />
               <span>Intake Protocol</span>
@@ -658,6 +695,16 @@ export default function PatientConsultation() {
             activeSpeakingId={activeMessageId}
             onToggleSpeak={handleToggleSpeak}
           />
+        )}
+
+        {/* Active Follow-up Intake Clarification Chip */}
+        {followUpInfo?.activeQuestion && !isStreaming && (
+          <div className="chat-active-followup-banner">
+            <span className="chat-active-followup-banner__tag">Awaiting Clarification</span>
+            <span className="chat-active-followup-banner__text">
+              {followUpInfo.activeQuestion.questionText}
+            </span>
+          </div>
         )}
 
         {/* Fixed Bottom Input Bar */}

@@ -4,6 +4,10 @@ import {
   getCaseHandler,
   getCaseByConversationHandler,
   listCasesHandler,
+  getCaseCompletenessHandler,
+  getFollowUpStatusHandler,
+  askFollowUpQuestionHandler,
+  answerFollowUpQuestionHandler,
   updateCaseHandler,
   updateCaseStatusHandler,
   extractCaseHandler,
@@ -34,6 +38,18 @@ router
   .get(validateConversationIdParam, getCaseByConversationHandler);
 
 router
+  .route('/conversation/:conversationId/follow-up')
+  .get(validateConversationIdParam, getFollowUpStatusHandler);
+
+router
+  .route('/conversation/:conversationId/follow-up/ask')
+  .post(validateConversationIdParam, askFollowUpQuestionHandler);
+
+router
+  .route('/conversation/:conversationId/follow-up/answer')
+  .post(validateConversationIdParam, answerFollowUpQuestionHandler);
+
+router
   .route('/conversation/:conversationId/extract')
   .post(validateConversationIdParam, extractCaseHandler);
 
@@ -45,6 +61,10 @@ router
   .route('/:id')
   .get(validateCaseIdParam, getCaseHandler)
   .patch(validateUpdateCase, updateCaseHandler);
+
+router
+  .route('/:id/completeness')
+  .get(validateCaseIdParam, getCaseCompletenessHandler);
 
 router
   .route('/:id/status')
